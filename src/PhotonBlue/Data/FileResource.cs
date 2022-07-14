@@ -9,5 +9,5 @@ public abstract class FileResource
         Reader = new BinaryReader(data);
     }
 
-    protected abstract void LoadFile();
+    public abstract void LoadFile();
 }

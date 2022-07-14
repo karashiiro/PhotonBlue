@@ -73,7 +73,7 @@ public class NiflFile : FileResource
     {
     }
 
-    protected override void LoadFile()
+    public override void LoadFile()
     {
         Header = FileHeader.Read(Reader);
         Rel0 = Rel0Header.Read(Reader);
