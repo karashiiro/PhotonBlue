@@ -121,7 +121,7 @@ public class NiflFile : FileResource
             {
                 // The reference implementation in NIFLnew uses a loop here
                 // corresponding to the count in NOF0, but doing that seems to
-                // fail on this file.
+                // fail on tut_006353.text.
                 Reader.Seek(Header.Rel0Offset + controls[i], SeekOrigin.Begin);
 
                 // Take bytes until encountering 00 00
