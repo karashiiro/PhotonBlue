@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using PhotonBlue.Extensions;
+// ReSharper disable NotAccessedField.Global
 
 namespace PhotonBlue.Data.Files;
 
@@ -112,13 +113,12 @@ public class NiflFile : FileResource
                 pairMode = true;
                 even = 0;
             }
+            else if (controls[i] == 0x00000014U)
+            {
+                break;
+            }
             else
             {
-                if (controls[i] == 0x00000014U)
-                {
-                    break;
-                }
-
                 // The reference implementation in NIFLnew uses a loop here
                 // corresponding to the count in NOF0, but doing that seems to
                 // fail on this file.
