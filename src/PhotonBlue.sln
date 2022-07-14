@@ -7,6 +7,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Git", "Git", "{5FE4B4A0-A52
 		.gitignore = .gitignore
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PhotonBlue.Tests", "PhotonBlue.Tests\PhotonBlue.Tests.csproj", "{FDB4F691-E21C-4DFC-8A47-9A940E40640A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -17,5 +19,9 @@ Global
 		{83763816-9F1D-42AC-8A30-47E9D2444347}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{83763816-9F1D-42AC-8A30-47E9D2444347}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{83763816-9F1D-42AC-8A30-47E9D2444347}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FDB4F691-E21C-4DFC-8A47-9A940E40640A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FDB4F691-E21C-4DFC-8A47-9A940E40640A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FDB4F691-E21C-4DFC-8A47-9A940E40640A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FDB4F691-E21C-4DFC-8A47-9A940E40640A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
