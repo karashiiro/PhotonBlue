@@ -1,4 +1,6 @@
-﻿namespace PhotonBlue.Data.Files;
+﻿using PhotonBlue.Extensions;
+
+namespace PhotonBlue.Data.Files;
 
 public class NiflFile : FileResource
 {
@@ -75,8 +77,11 @@ public class NiflFile : FileResource
 
     public override void LoadFile()
     {
+        var basePosition = Reader.BaseStream.Position;
         Header = FileHeader.Read(Reader);
+        Reader.Seek(basePosition + Header.Rel0Offset, SeekOrigin.Begin);
         Rel0 = Rel0Header.Read(Reader);
+        Reader.Seek(basePosition + Header.Nof0Offset, SeekOrigin.Begin);
         Nof0 = Nof0Header.Read(Reader);
     }
 }
