@@ -1,0 +1,21 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PhotonBlue", "PhotonBlue\PhotonBlue.csproj", "{83763816-9F1D-42AC-8A30-47E9D2444347}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Git", "Git", "{5FE4B4A0-A52F-482A-BF40-FA0CD698486D}"
+	ProjectSection(SolutionItems) = preProject
+		.gitignore = .gitignore
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{83763816-9F1D-42AC-8A30-47E9D2444347}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{83763816-9F1D-42AC-8A30-47E9D2444347}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{83763816-9F1D-42AC-8A30-47E9D2444347}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{83763816-9F1D-42AC-8A30-47E9D2444347}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
