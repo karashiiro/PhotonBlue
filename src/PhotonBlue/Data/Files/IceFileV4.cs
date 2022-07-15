@@ -65,21 +65,9 @@ public class IceFileV4 : IceFile
         return Enumerable.Repeat(br, Convert.ToInt32(header.FileCount))
             .Select<BinaryReader, FileEntry?>(reader =>
             {
-                // 0x50 is the minimum file entry header size; having less data than that
-                // means we need to stop processing data.
-                if (reader.BaseStream.Length - reader.BaseStream.Position < 0x50)
-                {
-                    return null;
-                }
-                
+                var basePos = reader.BaseStream.Position;
                 var entryHeader = FileEntryHeader.Read(reader);
-                
-                // If there isn't enough data, just stop processing here.
-                if (reader.BaseStream.Length - reader.BaseStream.Position < entryHeader.DataSize)
-                {
-                    return null;
-                }
-                
+                reader.Seek(basePos + entryHeader.HeaderSize, SeekOrigin.Begin);
                 var entryData = reader.ReadBytes(entryHeader.DataSize);
                 return new FileEntry(entryHeader, entryData);
             })
