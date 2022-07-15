@@ -1,0 +1,3 @@
+[submodule "src/ooz"]
+	path = src/ooz
+	url = https://github.com/karashiiro/ooz.git

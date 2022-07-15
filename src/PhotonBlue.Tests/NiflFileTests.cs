@@ -9,7 +9,7 @@ public class NiflFileTests
     [Fact]
     public void NiflFile_Parses_Headers()
     {
-        using var data = File.OpenRead(@"..\..\..\..\..\tut_006353.text");
+        using var data = File.OpenRead(@"..\..\..\..\..\testdata\tut_006353.text");
         var nifl = new NiflFile(data);
         nifl.LoadFile();
         Assert.Equal(0x4c46494eU, nifl.Header.Magic);
@@ -20,7 +20,7 @@ public class NiflFileTests
     [Fact]
     public void NiflFile_Parses_Text()
     {
-        using var data = File.OpenRead(@"..\..\..\..\..\tut_006353.text");
+        using var data = File.OpenRead(@"..\..\..\..\..\testdata\tut_006353.text");
         var nifl = new NiflFile(data);
         nifl.LoadFile();
 

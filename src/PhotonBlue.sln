@@ -14,6 +14,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GitHub", "GitHub", "{D43C13
 		..\README.md = ..\README.md
 	EndProjectSection
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ooz", "ooz\ooz.vcxproj", "{B6748219-A0E7-46BB-AE38-5343961CB36A}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PhotonBlue.Ooz", "PhotonBlue.Ooz\PhotonBlue.Ooz.vcxproj", "{06122773-8C0D-44D8-B021-9D2044EDA7CA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -28,5 +32,13 @@ Global
 		{FDB4F691-E21C-4DFC-8A47-9A940E40640A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FDB4F691-E21C-4DFC-8A47-9A940E40640A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FDB4F691-E21C-4DFC-8A47-9A940E40640A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B6748219-A0E7-46BB-AE38-5343961CB36A}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{B6748219-A0E7-46BB-AE38-5343961CB36A}.Debug|Any CPU.Build.0 = Debug|x64
+		{B6748219-A0E7-46BB-AE38-5343961CB36A}.Release|Any CPU.ActiveCfg = Release|x64
+		{B6748219-A0E7-46BB-AE38-5343961CB36A}.Release|Any CPU.Build.0 = Release|x64
+		{06122773-8C0D-44D8-B021-9D2044EDA7CA}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{06122773-8C0D-44D8-B021-9D2044EDA7CA}.Debug|Any CPU.Build.0 = Debug|x64
+		{06122773-8C0D-44D8-B021-9D2044EDA7CA}.Release|Any CPU.ActiveCfg = Release|x64
+		{06122773-8C0D-44D8-B021-9D2044EDA7CA}.Release|Any CPU.Build.0 = Release|x64
 	EndGlobalSection
 EndGlobal

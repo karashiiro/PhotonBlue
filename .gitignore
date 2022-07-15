@@ -6,5 +6,10 @@ riderModule.iml
 .idea/
 .vscode/
 
-*.text
+Win32/
+Debug/
+x64/
+
+/testdata
+
 *.user
