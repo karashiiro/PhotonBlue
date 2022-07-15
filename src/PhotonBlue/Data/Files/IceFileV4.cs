@@ -1,4 +1,5 @@
-﻿using PhotonBlue.Extensions;
+﻿using System.Diagnostics;
+using PhotonBlue.Extensions;
 using PhotonBlue.Ooz;
 
 namespace PhotonBlue.Data.Files;
@@ -47,12 +48,29 @@ public class IceFileV4 : IceFile
         Reader.Seek(0x10, SeekOrigin.Current);
 
         var group1Data = new byte[Group1.RawSize];
-        Kraken.Decompress(Reader.ReadBytes(Convert.ToInt32(Group1.CompressedSize)), Group1.CompressedSize, group1Data,
-            Group1.RawSize);
-
         var group2Data = new byte[Group2.RawSize];
-        Kraken.Decompress(Reader.ReadBytes(Convert.ToInt32(Group2.CompressedSize)), Group2.CompressedSize, group2Data,
-            Group2.RawSize);
+
+        var group1DataCompressed = Reader.ReadBytes(Convert.ToInt32(Group1.CompressedSize));
+        var group2DataCompressed = Reader.ReadBytes(Convert.ToInt32(Group2.CompressedSize));
+
+        // Decompress the archive contents
+        if (Header.Flags.HasFlag(IceFileFlags.Kraken))
+        {
+            Kraken.Decompress(group1DataCompressed, Group1.CompressedSize, group1Data, Group1.RawSize);
+            Kraken.Decompress(group2DataCompressed, Group2.CompressedSize, group2Data, Group2.RawSize);
+        }
+        else
+        {
+            using var group1Stream = new MemoryStream(group1DataCompressed);
+            using var group1DecompressionStream = new PrsStream(group1Stream);
+            var group1Read = group1DecompressionStream.Read(group1Data, 0, group1Data.Length);
+            Debug.Assert(group1Read == group1Data.Length);
+
+            using var group2Stream = new MemoryStream(group2DataCompressed);
+            using var group2DecompressionStream = new PrsStream(group2Stream);
+            var group2Read = group2DecompressionStream.Read(group2Data, 0, group2Data.Length);
+            Debug.Assert(group2Read == group2Data.Length);
+        }
 
         Group1Entries = UnpackGroup(Group1, group1Data);
         Group2Entries = UnpackGroup(Group2, group2Data);
