@@ -27,11 +27,13 @@ public class IceFileV4 : IceFile
     public GroupHeader Group1 { get; private set; }
     public GroupHeader Group2 { get; private set; }
 
-    public IList<FileEntry>? Group1Entries { get; private set; }
-    public IList<FileEntry>? Group2Entries { get; private set; }
+    public IList<FileEntry> Group1Entries { get; private set; }
+    public IList<FileEntry> Group2Entries { get; private set; }
 
     public IceFileV4(Stream data) : base(data)
     {
+        Group1Entries = Array.Empty<FileEntry>();
+        Group2Entries = Array.Empty<FileEntry>();
     }
 
     public override void LoadFile()
