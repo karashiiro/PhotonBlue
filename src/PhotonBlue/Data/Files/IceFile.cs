@@ -46,6 +46,12 @@ public abstract class IceFile : FileResource
     {
         public FileEntryHeader Header;
         public byte[] Data;
+
+        public FileEntry(FileEntryHeader header, byte[] data)
+        {
+            Header = header;
+            Data = data;
+        }
     }
 
     public struct FileEntryHeader
@@ -58,7 +64,7 @@ public abstract class IceFile : FileResource
         public uint Reserved1;
         public uint Reserved2;
         public uint Reserved3;
-        public byte[] Reserved4;
+        public byte[] Reserved4; // 0x20 bytes
         public byte[] FileNameRaw;
 
         public string FileName => Encoding.UTF8.GetString(FileNameRaw).TrimEnd('\u0000');

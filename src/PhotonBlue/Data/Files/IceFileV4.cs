@@ -61,25 +61,27 @@ public class IceFileV4 : IceFile
     private static FileEntry[] UnpackGroup(GroupHeader header, byte[] data)
     {
         using var buf = new MemoryStream(data);
-        using var reader = new BinaryReader(buf);
-        return Enumerable.Range(0, Convert.ToInt32(header.FileCount))
-            .Select<int, FileEntry?>(_ =>
+        using var br = new BinaryReader(buf);
+        return Enumerable.Repeat(br, Convert.ToInt32(header.FileCount))
+            .Select<BinaryReader, FileEntry?>(reader =>
             {
-                try
+                // 0x50 is the minimum file entry header size; having less data than that
+                // means we need to stop processing data.
+                if (reader.BaseStream.Length - reader.BaseStream.Position < 0x50)
                 {
-                    var entryHeader = FileEntryHeader.Read(reader);
-                    var entryData = reader.ReadBytes(entryHeader.DataSize);
-                    return new FileEntry
-                    {
-                        Header = entryHeader,
-                        Data = entryData,
-                    };
-                }
-                catch (EndOfStreamException)
-                {
-                    // No more data is available, for some reason
                     return null;
                 }
+                
+                var entryHeader = FileEntryHeader.Read(reader);
+                
+                // If there isn't enough data, just stop processing here.
+                if (reader.BaseStream.Length - reader.BaseStream.Position < entryHeader.DataSize)
+                {
+                    return null;
+                }
+                
+                var entryData = reader.ReadBytes(entryHeader.DataSize);
+                return new FileEntry(entryHeader, entryData);
             })
             .Where(e => e.HasValue)
             .Select(e => e!.Value)
