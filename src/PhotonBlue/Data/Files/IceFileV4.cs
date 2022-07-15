@@ -27,6 +27,9 @@ public class IceFileV4 : IceFile
     public GroupHeader Group1 { get; private set; }
     public GroupHeader Group2 { get; private set; }
 
+    public IList<FileEntry>? Group1Entries { get; private set; }
+    public IList<FileEntry>? Group2Entries { get; private set; }
+
     public IceFileV4(Stream data) : base(data)
     {
     }
@@ -44,9 +47,40 @@ public class IceFileV4 : IceFile
         var group1Data = new byte[Group1.RawSize];
         Kraken.Decompress(Reader.ReadBytes(Convert.ToInt32(Group1.CompressedSize)), Group1.CompressedSize, group1Data,
             Group1.RawSize);
-        
+
         var group2Data = new byte[Group2.RawSize];
         Kraken.Decompress(Reader.ReadBytes(Convert.ToInt32(Group2.CompressedSize)), Group2.CompressedSize, group2Data,
             Group2.RawSize);
+
+        Group1Entries = UnpackGroup(Group1, group1Data);
+        Group2Entries = UnpackGroup(Group2, group2Data);
+    }
+
+    private static FileEntry[] UnpackGroup(GroupHeader header, byte[] data)
+    {
+        using var buf = new MemoryStream(data);
+        using var reader = new BinaryReader(buf);
+        return Enumerable.Range(0, Convert.ToInt32(header.FileCount))
+            .Select<int, FileEntry?>(_ =>
+            {
+                try
+                {
+                    var entryHeader = FileEntryHeader.Read(reader);
+                    var entryData = reader.ReadBytes(entryHeader.DataSize);
+                    return new FileEntry
+                    {
+                        Header = entryHeader,
+                        Data = entryData,
+                    };
+                }
+                catch (EndOfStreamException)
+                {
+                    // No more data is available, for some reason
+                    return null;
+                }
+            })
+            .Where(e => e.HasValue)
+            .Select(e => e!.Value)
+            .ToArray();
     }
 }

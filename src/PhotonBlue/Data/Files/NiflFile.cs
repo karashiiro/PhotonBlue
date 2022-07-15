@@ -132,7 +132,7 @@ public class NiflFile : FileResource
                 } while (str.Count < 2 || str[^2] != 0 || str[^1] != 0);
 
                 var encoding = even == 1 ? Encoding.Unicode : Encoding.UTF8;
-                text.Add(encoding.GetString(str.ToArray()));
+                text.Add(encoding.GetString(str.ToArray()).TrimEnd('\u0000'));
 
                 if (pairMode)
                 {
