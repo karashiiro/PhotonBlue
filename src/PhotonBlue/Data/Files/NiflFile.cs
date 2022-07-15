@@ -129,7 +129,7 @@ public class NiflFile : FileResource
                 do
                 {
                     str.Add(Reader.ReadByte());
-                } while (str.Count < 2 || str[^2] != 0 || str[^1] != 0);
+                } while (str.Count < 2 || (even == 1 && str[^2] != 0) || str[^1] != 0);
 
                 var encoding = even == 1 ? Encoding.Unicode : Encoding.UTF8;
                 text.Add(encoding.GetString(str.ToArray()).TrimEnd('\u0000'));
