@@ -124,7 +124,8 @@ public class NiflFile : FileResource
                 // fail on tut_006353.text.
                 Reader.Seek(Header.Rel0Offset + controls[i], SeekOrigin.Begin);
 
-                // Take bytes until encountering 00 00
+                // Take bytes until encountering a null-terminator for the
+                // current encoding
                 var str = new List<byte>();
                 do
                 {
