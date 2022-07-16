@@ -1,4 +1,4 @@
-﻿namespace PhotonBlue;
+﻿namespace PhotonBlue.Cryptography;
 
 public class FloatageFish
 {

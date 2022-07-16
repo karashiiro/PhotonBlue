@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Text;
+using PhotonBlue.Cryptography;
 using PhotonBlue.Extensions;
 using PhotonBlue.Ooz;
 
