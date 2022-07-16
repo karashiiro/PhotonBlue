@@ -43,29 +43,38 @@ public class IceFileV4 : IceFile
         base.LoadFile();
 
         // Decrypt the file headers, if necessary
+        byte[] group1DataCompressed;
+        byte[] group2DataCompressed;
         if (Header.Flags.HasFlag(IceFileFlags.Encrypted))
         {
             var keys = GetBlowfishKeys(Header.BlowfishMagic, Header.FileSize);
             var headersRaw = Reader.ReadBytes(0x30);
             var blowfish = new Blowfish(BitConverter.GetBytes(keys.GroupHeadersKey));
             blowfish.Decrypt(ref headersRaw);
-
+            
             using var headersMem = new MemoryStream(headersRaw);
             using var subReader = new BinaryReader(headersMem);
-            
+
             Group1 = GroupHeader.Read(subReader);
             Group2 = GroupHeader.Read(subReader);
+
+            var encryptedGroup1Data = Reader.ReadBytes(Convert.ToInt32(Group1.CompressedSize));
+            var encryptedGroup2Data = Reader.ReadBytes(Convert.ToInt32(Group2.CompressedSize));
+
+            group1DataCompressed =
+                DecryptGroup(encryptedGroup1Data, keys.Group1Keys[0], keys.Group1Keys[1], false);
+            group2DataCompressed =
+                DecryptGroup(encryptedGroup2Data, keys.Group2Keys[0], keys.Group2Keys[1], false);
         }
         else
         {
             Group1 = GroupHeader.Read(Reader);
             Group2 = GroupHeader.Read(Reader);
             Reader.Seek(0x10, SeekOrigin.Current);
+            group1DataCompressed = Reader.ReadBytes(Convert.ToInt32(Group1.CompressedSize));
+            group2DataCompressed = Reader.ReadBytes(Convert.ToInt32(Group2.CompressedSize));
         }
-        
-        var group1DataCompressed = Reader.ReadBytes(Convert.ToInt32(Group1.CompressedSize));
-        var group2DataCompressed = Reader.ReadBytes(Convert.ToInt32(Group2.CompressedSize));
-        
+
         // Decompress the archive contents
         var group1Data = new byte[Group1.RawSize];
         var group2Data = new byte[Group2.RawSize];
@@ -92,7 +101,7 @@ public class IceFileV4 : IceFile
         Group1Entries = UnpackGroup(Group1, group1Data);
         Group2Entries = UnpackGroup(Group2, group2Data);
     }
-    
+
     private static FileEntry[] UnpackGroup(GroupHeader header, byte[] data)
     {
         using var buf = new MemoryStream(data);
@@ -110,30 +119,56 @@ public class IceFileV4 : IceFile
             .Select(e => e!.Value)
             .ToArray();
     }
-    
+
+    private static int SecondPassThreshold => 102400;
+
+    private static byte[] DecryptGroup(byte[] buffer, uint key1, uint key2, bool v3Decrypt)
+    {
+        var block = new byte[buffer.Length];
+        if (v3Decrypt == false)
+        {
+            block = FloatageFish.DecryptBlock(buffer, (uint)buffer.Length, key1, 16);
+        }
+        else
+        {
+            Array.Copy(buffer, 0, block, 0, buffer.Length);
+        }
+        
+        var blowfish1 = new Blowfish(BitConverter.GetBytes(key1));
+        var blowfish2 = new Blowfish(BitConverter.GetBytes(key2));
+        
+        blowfish1.Decrypt(ref block);
+        if (block.Length <= SecondPassThreshold && v3Decrypt == false)
+            blowfish2.Decrypt(ref block);
+        
+        return block;
+    }
+
     private static BlowfishKeys GetBlowfishKeys(byte[] magic, int compressedSize)
     {
         var blowfishKeys = new BlowfishKeys();
-        
+
         var crc32 = new Crc32();
         crc32.Init();
         crc32.Update(magic, 124, 96);
         var hashBytes = BitConverter.GetBytes(crc32.Checksum);
-        
-        var tempKey = (uint)((int)BitConverter.ToUInt32(hashBytes.Reverse().ToArray(), 0) ^ (int)BitConverter.ToUInt32(magic, 108) ^ compressedSize ^ 1129510338);
+
+        var tempKey =
+            (uint)((int)BitConverter.ToUInt32(hashBytes, 0) ^
+                   (int)BitConverter.ToUInt32(magic, 108) ^ compressedSize ^ 1129510338);
         var key = GetBlowfishKey(magic, tempKey);
-        blowfishKeys.Group1Blowfish[0] = CalcBlowfishKeys(magic, key);
-        blowfishKeys.Group1Blowfish[1] = GetBlowfishKey(magic, blowfishKeys.Group1Blowfish[0]);
-        blowfishKeys.Group2Blowfish[0] = blowfishKeys.Group1Blowfish[0] >> 15 | blowfishKeys.Group1Blowfish[0] << 17;
-        blowfishKeys.Group2Blowfish[1] = blowfishKeys.Group1Blowfish[1] >> 15 | blowfishKeys.Group1Blowfish[1] << 17;
-        
-        var x = blowfishKeys.Group1Blowfish[0] << 13 | blowfishKeys.Group1Blowfish[0] >> 19;
-        blowfishKeys.GroupHeadersKey = BitConverter.ToUInt32(BitConverter.GetBytes(x).Reverse().ToArray());
-        
+        blowfishKeys.Group1Keys[0] = CalcBlowfishKey(magic, key);
+        blowfishKeys.Group1Keys[1] = GetBlowfishKey(magic, blowfishKeys.Group1Keys[0]);
+        blowfishKeys.Group2Keys[0] = blowfishKeys.Group1Keys[0] >> 15 | blowfishKeys.Group1Keys[0] << 17;
+        blowfishKeys.Group2Keys[1] = blowfishKeys.Group1Keys[1] >> 15 | blowfishKeys.Group1Keys[1] << 17;
+
+        var x = blowfishKeys.Group1Keys[0] << 13 | blowfishKeys.Group1Keys[0] >> 19;
+        blowfishKeys.GroupHeadersKey = BitConverter.ToUInt32(BitConverter.GetBytes(x));
+
         return blowfishKeys;
     }
-    
-    private static uint CalcBlowfishKeys(IReadOnlyList<byte> magic, uint tempKey)
+
+    private static uint CalcBlowfishKey(IReadOnlyList<byte> magic, uint tempKey)
     {
         var tempKey1 = 2382545500U ^ tempKey;
         var num1 = (uint)(613566757L * tempKey1 >> 32);
@@ -159,8 +194,8 @@ public class IceFileV4 : IceFile
     {
         public uint GroupHeadersKey;
 
-        public uint[] Group1Blowfish { get; } = new uint[2];
+        public uint[] Group1Keys { get; } = new uint[2];
 
-        public uint[] Group2Blowfish { get; } = new uint[2];
+        public uint[] Group2Keys { get; } = new uint[2];
     }
 }
