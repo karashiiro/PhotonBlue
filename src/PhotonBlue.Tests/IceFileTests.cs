@@ -64,7 +64,7 @@ public class IceFileTests
         ice.LoadFile();
         
         Assert.Equal(0, ice.Group1Entries.Count);
-        Assert.Equal(31, ice.Group2Entries.Count);
+        Assert.Equal(1, ice.Group2Entries.Count);
         Assert.All(ice.Group2Entries, AssertEntryValid);
     }
     
