@@ -24,6 +24,7 @@ public class IceFileTests
         var ice = new IceFileV4(data);
         ice.LoadFile();
         
+        Assert.Equal(0, ice.Group1Entries.Count);
         Assert.Equal(31, ice.Group2Entries.Count);
     }
 }

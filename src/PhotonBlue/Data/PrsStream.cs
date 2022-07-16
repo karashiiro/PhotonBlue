@@ -1,21 +1,25 @@
-﻿namespace PhotonBlue.Data;
+﻿using System.Diagnostics;
+
+namespace PhotonBlue.Data;
 
 public class PrsStream : Stream
 {
+    private const int MinLongCopyLength = 10;
+
     public override bool CanRead { get; }
     public override bool CanSeek { get; }
     public override bool CanWrite { get; }
     public override long Length => throw new NotSupportedException();
+
     public override long Position
     {
         get => throw new NotSupportedException();
         set => throw new NotSupportedException();
     }
-    
-    private int _ctrlByteCounter = 1;
+
+    private int _ctrlByteCounter = 0;
     private byte _origCtrlByte = 0;
     private byte _ctrlByte = 0;
-    private int _currDecompPos = 0;
 
     private readonly Stream _stream;
 
@@ -34,52 +38,66 @@ public class PrsStream : Stream
 
     public override int Read(byte[] buffer, int offset, int count)
     {
-        var initialPos = _stream.Position;
-        
         // These variable names might be incorrect; I inferred these based on the LZ77
-        // algorithm description.
+        // algorithm description and other PRS implementations.
         var outIndex = offset;
-        while (outIndex < count && _stream.Position < _stream.Length)
+        var endIndex = offset + count;
+        while (outIndex < endIndex)
         {
             while (GetControlBit())
+            {
+                // Raw data read
                 buffer[outIndex++] = (byte)_stream.ReadByte();
-            
-            int lookahead;
-            int blockEndIndex;
+            }
+
+            int controlOffset;
+            int controlSize;
             if (GetControlBit())
             {
-                if (_stream.Position < _stream.Length)
+                var data0 = _stream.ReadByte();
+                var data1 = _stream.ReadByte();
+                if (data0 == 0 && data1 == 0)
                 {
-                    var unk0 = _stream.ReadByte();
-                    var unk1 = _stream.ReadByte();
-                    if (unk0 != 0 || unk1 != 0)
-                    {
-                        lookahead = (unk1 << 5) + (unk0 >> 3) - 8192;
-                        var unk2 = unk0 & 7;
-                        blockEndIndex = unk2 != 0 ? unk2 + 2 : _stream.ReadByte() + 10;
-                    }
-                    else
-                        break;
+                    // EOF
+                    break;
+                }
+
+                controlOffset = (data1 << 5) + (data0 >> 3) - 8192;
+                controlSize = data0 & 0b00000111;
+
+                if (controlSize == 0)
+                {
+                    // Long search; long size
+                    controlSize = _stream.ReadByte() + MinLongCopyLength;
                 }
                 else
-                    break;
+                {
+                    // Long search; short size
+                    controlSize += 2;
+                }
             }
             else
             {
-                blockEndIndex = 2;
+                // Short search; short size
+                controlSize = 2;
                 if (GetControlBit())
-                    blockEndIndex += 2;
+                    controlSize += 2;
                 if (GetControlBit())
-                    ++blockEndIndex;
-                lookahead = _stream.ReadByte() - 256;
+                    ++controlSize;
+
+                controlOffset = _stream.ReadByte() - 256;
             }
-            
-            var lookaheadIndex = lookahead + outIndex;
-            for (var index = 0; index < blockEndIndex && outIndex < count; ++index)
-                buffer[outIndex++] = buffer[lookaheadIndex++];
+
+            Debug.Assert(controlOffset != 0 && outIndex >= Math.Abs(controlOffset), "Bad copy instruction detected.");
+
+            var loadIndex = outIndex + controlOffset;
+            for (var index = 0; index < controlSize; ++index)
+            {
+                buffer[outIndex++] = buffer[loadIndex++];
+            }
         }
 
-        return Convert.ToInt32(_stream.Position - initialPos);
+        return outIndex - offset;
     }
 
     public override long Seek(long offset, SeekOrigin origin)
@@ -96,21 +114,20 @@ public class PrsStream : Stream
     {
         throw new NotImplementedException();
     }
-    
+
     private bool GetControlBit()
     {
-        --_ctrlByteCounter;
-        
         if (_ctrlByteCounter == 0)
         {
             _origCtrlByte = (byte)_stream.ReadByte();
             _ctrlByte = _origCtrlByte;
             _ctrlByteCounter = 8;
         }
-        
+
         var flag = (_ctrlByte & 1U) > 0U;
         _ctrlByte >>= 1;
-        
+        --_ctrlByteCounter;
+
         return flag;
     }
 }

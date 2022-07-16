@@ -62,12 +62,14 @@ public class IceFileV4 : IceFile
         else
         {
             using var group1Stream = new MemoryStream(group1DataCompressed);
-            using var group1DecompressionStream = new PrsStream(group1Stream);
+            using var group1IceStream = new IcePrsInputStream(group1Stream);
+            using var group1DecompressionStream = new PrsStream(group1IceStream);
             var group1Read = group1DecompressionStream.Read(group1Data, 0, group1Data.Length);
             Debug.Assert(group1Read == group1Data.Length);
 
             using var group2Stream = new MemoryStream(group2DataCompressed);
-            using var group2DecompressionStream = new PrsStream(group2Stream);
+            using var group2IceStream = new IcePrsInputStream(group2Stream);
+            using var group2DecompressionStream = new PrsStream(group2IceStream);
             var group2Read = group2DecompressionStream.Read(group2Data, 0, group2Data.Length);
             Debug.Assert(group2Read == group2Data.Length);
         }
