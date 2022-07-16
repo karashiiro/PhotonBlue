@@ -121,7 +121,10 @@ public class IceFileV4 : IceFile
             {
                 var basePos = reader.BaseStream.Position;
                 var entryHeader = FileEntryHeader.Read(reader);
-                reader.Seek(basePos + entryHeader.HeaderSize, SeekOrigin.Begin);
+                // There seems to sometimes be a gap between the entry header and the entry data that isn't
+                // accounted for any documentation. It doesn't seem to be related to the file name length,
+                // but I may be wrong. This occurs in win32/0000064b91444b04df5d95f6a0bc55be.
+                reader.Seek(basePos + (entryHeader.FileSize - entryHeader.DataSize), SeekOrigin.Begin);
                 var entryData = reader.ReadBytes(Convert.ToInt32(entryHeader.DataSize));
                 return new FileEntry(entryHeader, entryData);
             })

@@ -1,6 +1,8 @@
 ﻿// ReSharper disable NotAccessedField.Global
 
+using System.Diagnostics;
 using System.Text;
+using PhotonBlue.Extensions;
 
 namespace PhotonBlue.Data.Files;
 
@@ -45,12 +47,15 @@ public class IceFile : FileResource
     public struct FileEntry
     {
         public FileEntryHeader Header;
+        // ReSharper disable once FieldCanBeMadeReadOnly.Global
         public byte[] Data;
 
         public FileEntry(FileEntryHeader header, byte[] data)
         {
             Header = header;
             Data = data;
+            
+            Debug.Assert(Header.DataSize == Data.Length, "File data size mismatch.");
         }
     }
 
@@ -67,7 +72,7 @@ public class IceFile : FileResource
         public byte[] Reserved4; // 0x20 bytes
         public byte[] FileNameRaw;
 
-        public string FileName => Encoding.UTF8.GetString(FileNameRaw).TrimEnd('\u0000');
+        public string FileName => Encoding.UTF8.GetString(FileNameRaw);
 
         public static FileEntryHeader Read(BinaryReader reader)
         {
@@ -84,8 +89,14 @@ public class IceFile : FileResource
                 Reserved4 = reader.ReadBytes(0x20),
             };
 
-            // This should always end up being either 0x10 or 0x20 bytes
+            // This should always end up being less than 0x20 bytes
             header.FileNameRaw = reader.ReadBytes(Convert.ToInt32(header.FileNameLength));
+            
+            // The name area size is a multiple of 0x10, but the name length can be less than that.
+            // We need to seek to the end of the region to read the next block correctly.
+            reader.Seek(0x10 - header.FileNameLength % 0x10, SeekOrigin.Current);
+
+            Debug.Assert(header.FileNameLength <= 0x20, "Unexpected file name length detected.");
 
             return header;
         }
