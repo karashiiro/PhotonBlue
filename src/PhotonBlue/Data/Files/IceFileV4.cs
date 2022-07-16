@@ -13,11 +13,6 @@ public class IceFileV4 : IceFile
         public uint FileCount;
         public uint CRC32;
 
-        public uint GetStoredSize()
-        {
-            return CompressedSize > 0 ? CompressedSize : RawSize;
-        }
-
         public static GroupHeader Read(BinaryReader reader)
         {
             return new()
@@ -63,8 +58,8 @@ public class IceFileV4 : IceFile
             Group1 = GroupHeader.Read(subReader);
             Group2 = GroupHeader.Read(subReader);
 
-            var encryptedGroup1Data = Reader.ReadBytes(Convert.ToInt32(Group1.GetStoredSize()));
-            var encryptedGroup2Data = Reader.ReadBytes(Convert.ToInt32(Group2.GetStoredSize()));
+            var encryptedGroup1Data = Reader.ReadBytes(Convert.ToInt32(Group1.CompressedSize));
+            var encryptedGroup2Data = Reader.ReadBytes(Convert.ToInt32(Group2.CompressedSize));
 
             group1DataCompressed =
                 DecryptGroup(encryptedGroup1Data, keys.Group1Keys[0], keys.Group1Keys[1], false);
@@ -76,8 +71,8 @@ public class IceFileV4 : IceFile
             Group1 = GroupHeader.Read(Reader);
             Group2 = GroupHeader.Read(Reader);
             Reader.Seek(0x10, SeekOrigin.Current);
-            group1DataCompressed = Reader.ReadBytes(Convert.ToInt32(Group1.GetStoredSize()));
-            group2DataCompressed = Reader.ReadBytes(Convert.ToInt32(Group2.GetStoredSize()));
+            group1DataCompressed = Reader.ReadBytes(Convert.ToInt32(Group1.CompressedSize));
+            group2DataCompressed = Reader.ReadBytes(Convert.ToInt32(Group2.CompressedSize));
         }
 
         // Decompress the archive contents
