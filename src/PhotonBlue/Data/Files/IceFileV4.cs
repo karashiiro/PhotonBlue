@@ -127,7 +127,7 @@ public class IceFileV4 : IceFile
             .ToArray();
     }
 
-    private static int SecondPassThreshold => 102400;
+    private const int SecondPassThreshold = 102400;
 
     private static byte[] DecryptGroup(byte[] buffer, uint key1, uint key2, bool v3Decrypt)
     {
