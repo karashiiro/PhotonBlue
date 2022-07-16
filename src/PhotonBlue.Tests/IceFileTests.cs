@@ -80,7 +80,7 @@ public class IceFileTests
         Assert.All(ice.Group2Entries, AssertEntryValid);
     }
 
-    private void AssertEntryValid(IceFile.FileEntry entry)
+    private static void AssertEntryValid(IceFile.FileEntry entry)
     {
         Assert.True(entry.Header.FileNameRaw.Length <= 0x20);
         Assert.True(entry.Header.DataSize == entry.Data.Length);
