@@ -22,7 +22,7 @@ public abstract class IceFile : FileResource
         public uint Reserved3;
         public uint CRC32;
         public IceFileFlags Flags;
-        public int FileSize;
+        public uint FileSize;
         public byte[] BlowfishMagic; // 0x100 bytes
 
         public static FileHeader Read(BinaryReader reader)
@@ -36,7 +36,7 @@ public abstract class IceFile : FileResource
                 Reserved3 = reader.ReadUInt32(),
                 CRC32 = reader.ReadUInt32(),
                 Flags = (IceFileFlags)reader.ReadUInt32(),
-                FileSize = reader.ReadInt32(),
+                FileSize = reader.ReadUInt32(),
                 BlowfishMagic = reader.ReadBytes(0x100),
             };
         }
@@ -57,10 +57,10 @@ public abstract class IceFile : FileResource
     public struct FileEntryHeader
     {
         public uint Magic;
-        public int FileSize;
-        public int DataSize; // Size without this header
-        public int HeaderSize;
-        public int FileNameLength;
+        public uint FileSize;
+        public uint DataSize; // Size without this header
+        public uint HeaderSize;
+        public uint FileNameLength;
         public uint Reserved1;
         public uint Reserved2;
         public uint Reserved3;
@@ -74,10 +74,10 @@ public abstract class IceFile : FileResource
             var header = new FileEntryHeader
             {
                 Magic = reader.ReadUInt32(),
-                FileSize = reader.ReadInt32(),
-                DataSize = reader.ReadInt32(),
-                HeaderSize = reader.ReadInt32(),
-                FileNameLength = reader.ReadInt32(),
+                FileSize = reader.ReadUInt32(),
+                DataSize = reader.ReadUInt32(),
+                HeaderSize = reader.ReadUInt32(),
+                FileNameLength = reader.ReadUInt32(),
                 Reserved1 = reader.ReadUInt32(),
                 Reserved2 = reader.ReadUInt32(),
                 Reserved3 = reader.ReadUInt32(),
@@ -85,7 +85,7 @@ public abstract class IceFile : FileResource
             };
 
             // This should always end up being either 0x10 or 0x20 bytes
-            header.FileNameRaw = reader.ReadBytes(header.FileNameLength);
+            header.FileNameRaw = reader.ReadBytes(Convert.ToInt32(header.FileNameLength));
 
             return header;
         }

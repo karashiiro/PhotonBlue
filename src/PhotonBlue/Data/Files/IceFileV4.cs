@@ -13,6 +13,11 @@ public class IceFileV4 : IceFile
         public uint FileCount;
         public uint CRC32;
 
+        public uint GetStoredSize()
+        {
+            return CompressedSize > 0 ? CompressedSize : RawSize;
+        }
+
         public static GroupHeader Read(BinaryReader reader)
         {
             return new()
@@ -47,7 +52,7 @@ public class IceFileV4 : IceFile
         byte[] group2DataCompressed;
         if (Header.Flags.HasFlag(IceFileFlags.Encrypted))
         {
-            var keys = GetBlowfishKeys(Header.BlowfishMagic, Header.FileSize);
+            var keys = GetBlowfishKeys(Header.BlowfishMagic, Convert.ToInt32(Header.FileSize));
             var headersRaw = Reader.ReadBytes(0x30);
             var blowfish = new Blowfish(BitConverter.GetBytes(keys.GroupHeadersKey));
             blowfish.Decrypt(ref headersRaw);
@@ -58,8 +63,8 @@ public class IceFileV4 : IceFile
             Group1 = GroupHeader.Read(subReader);
             Group2 = GroupHeader.Read(subReader);
 
-            var encryptedGroup1Data = Reader.ReadBytes(Convert.ToInt32(Group1.CompressedSize));
-            var encryptedGroup2Data = Reader.ReadBytes(Convert.ToInt32(Group2.CompressedSize));
+            var encryptedGroup1Data = Reader.ReadBytes(Convert.ToInt32(Group1.GetStoredSize()));
+            var encryptedGroup2Data = Reader.ReadBytes(Convert.ToInt32(Group2.GetStoredSize()));
 
             group1DataCompressed =
                 DecryptGroup(encryptedGroup1Data, keys.Group1Keys[0], keys.Group1Keys[1], false);
@@ -71,8 +76,8 @@ public class IceFileV4 : IceFile
             Group1 = GroupHeader.Read(Reader);
             Group2 = GroupHeader.Read(Reader);
             Reader.Seek(0x10, SeekOrigin.Current);
-            group1DataCompressed = Reader.ReadBytes(Convert.ToInt32(Group1.CompressedSize));
-            group2DataCompressed = Reader.ReadBytes(Convert.ToInt32(Group2.CompressedSize));
+            group1DataCompressed = Reader.ReadBytes(Convert.ToInt32(Group1.GetStoredSize()));
+            group2DataCompressed = Reader.ReadBytes(Convert.ToInt32(Group2.GetStoredSize()));
         }
 
         // Decompress the archive contents
@@ -112,7 +117,7 @@ public class IceFileV4 : IceFile
                 var basePos = reader.BaseStream.Position;
                 var entryHeader = FileEntryHeader.Read(reader);
                 reader.Seek(basePos + entryHeader.HeaderSize, SeekOrigin.Begin);
-                var entryData = reader.ReadBytes(entryHeader.DataSize);
+                var entryData = reader.ReadBytes(Convert.ToInt32(entryHeader.DataSize));
                 return new FileEntry(entryHeader, entryData);
             })
             .Where(e => e.HasValue)
@@ -125,7 +130,7 @@ public class IceFileV4 : IceFile
     private static byte[] DecryptGroup(byte[] buffer, uint key1, uint key2, bool v3Decrypt)
     {
         var block = new byte[buffer.Length];
-        if (v3Decrypt == false)
+        if (!v3Decrypt)
         {
             block = FloatageFish.DecryptBlock(buffer, (uint)buffer.Length, key1, 16);
         }
