@@ -4,7 +4,7 @@ using System.Text;
 
 namespace PhotonBlue.Data.Files;
 
-public abstract class IceFile : FileResource
+public class IceFile : FileResource
 {
     [Flags]
     public enum IceFileFlags : uint

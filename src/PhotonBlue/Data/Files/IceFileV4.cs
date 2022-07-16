@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Text;
 using PhotonBlue.Extensions;
 using PhotonBlue.Ooz;
 
@@ -41,6 +42,9 @@ public class IceFileV4 : IceFile
     {
         // Read the ICE archive header
         base.LoadFile();
+        
+        Debug.Assert(Encoding.UTF8.GetString(BitConverter.GetBytes(Header.Magic)) != "ICE", "Incorrect magic number detected!");
+        Debug.Assert(Header.Version == 4, "Incorrect ICE version detected!");
 
         // Decrypt the file headers, if necessary
         byte[] group1DataCompressed;
@@ -61,10 +65,8 @@ public class IceFileV4 : IceFile
             var encryptedGroup1Data = Reader.ReadBytes(Convert.ToInt32(Group1.CompressedSize));
             var encryptedGroup2Data = Reader.ReadBytes(Convert.ToInt32(Group2.CompressedSize));
 
-            group1DataCompressed =
-                DecryptGroup(encryptedGroup1Data, keys.Group1Keys[0], keys.Group1Keys[1], false);
-            group2DataCompressed =
-                DecryptGroup(encryptedGroup2Data, keys.Group2Keys[0], keys.Group2Keys[1], false);
+            group1DataCompressed = DecryptGroup(encryptedGroup1Data, keys.Group1Keys[0], keys.Group1Keys[1]);
+            group2DataCompressed = DecryptGroup(encryptedGroup2Data, keys.Group2Keys[0], keys.Group2Keys[1]);
         }
         else
         {
@@ -114,7 +116,7 @@ public class IceFileV4 : IceFile
         using var buf = new MemoryStream(data);
         using var br = new BinaryReader(buf);
         return Enumerable.Repeat(br, Convert.ToInt32(header.FileCount))
-            .Select<BinaryReader, FileEntry?>(reader =>
+            .Select(reader =>
             {
                 var basePos = reader.BaseStream.Position;
                 var entryHeader = FileEntryHeader.Read(reader);
@@ -122,24 +124,14 @@ public class IceFileV4 : IceFile
                 var entryData = reader.ReadBytes(Convert.ToInt32(entryHeader.DataSize));
                 return new FileEntry(entryHeader, entryData);
             })
-            .Where(e => e.HasValue)
-            .Select(e => e!.Value)
             .ToArray();
     }
 
     private const int SecondPassThreshold = 102400;
 
-    private static byte[] DecryptGroup(byte[] buffer, uint key1, uint key2, bool v3Decrypt)
+    private static byte[] DecryptGroup(byte[] buffer, uint key1, uint key2)
     {
-        var block = new byte[buffer.Length];
-        if (!v3Decrypt)
-        {
-            block = FloatageFish.DecryptBlock(buffer, (uint)buffer.Length, key1, 16);
-        }
-        else
-        {
-            Array.Copy(buffer, 0, block, 0, buffer.Length);
-        }
+        var block = FloatageFish.DecryptBlock(buffer, (uint)buffer.Length, key1, 16);
         
         // The encrypted buffer must be a multiple of 8 bytes long for Blowfish
         // decryption, but FloatageFish requires that the buffer have its original
@@ -152,7 +144,7 @@ public class IceFileV4 : IceFile
         var blowfish2 = new Blowfish(BitConverter.GetBytes(key2));
         
         blowfish1.Decrypt(ref blockPadded);
-        if (block.Length <= SecondPassThreshold && v3Decrypt == false)
+        if (block.Length <= SecondPassThreshold)
             blowfish2.Decrypt(ref blockPadded);
         
         // Copy the data back to the original array with its correct size
