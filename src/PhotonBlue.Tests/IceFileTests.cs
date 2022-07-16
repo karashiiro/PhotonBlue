@@ -18,6 +18,17 @@ public class IceFileTests
     }
     
     [Fact]
+    public void IceFile_Parses_V4_Encrypted_Kraken_Data()
+    {
+        using var data = File.OpenRead(@"..\..\..\..\..\testdata\74cdd2b68f9614e70dd0b67a80e4d723");
+        var ice = new IceFileV4(data);
+        ice.LoadFile();
+        
+        Assert.Equal(0, ice.Group1Entries.Count);
+        Assert.Equal(2, ice.Group2Entries.Count);
+    }
+    
+    [Fact]
     public void IceFile_Parses_V4_PRS_Data()
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\cb1001342c1f786545795140c345f1");
