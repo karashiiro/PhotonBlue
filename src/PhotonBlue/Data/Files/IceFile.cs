@@ -22,8 +22,8 @@ public abstract class IceFile : FileResource
         public uint Reserved3;
         public uint CRC32;
         public IceFileFlags Flags;
-        public uint FileSize;
-        public byte[] Reserved4; // 0x100 bytes
+        public int FileSize;
+        public byte[] BlowfishMagic; // 0x100 bytes
 
         public static FileHeader Read(BinaryReader reader)
         {
@@ -36,8 +36,8 @@ public abstract class IceFile : FileResource
                 Reserved3 = reader.ReadUInt32(),
                 CRC32 = reader.ReadUInt32(),
                 Flags = (IceFileFlags)reader.ReadUInt32(),
-                FileSize = reader.ReadUInt32(),
-                Reserved4 = reader.ReadBytes(0x100),
+                FileSize = reader.ReadInt32(),
+                BlowfishMagic = reader.ReadBytes(0x100),
             };
         }
     }
