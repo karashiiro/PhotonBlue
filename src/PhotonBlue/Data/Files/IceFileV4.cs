@@ -151,10 +151,9 @@ public class IceFileV4 : IceFile
         var crc32 = new Crc32();
         crc32.Init();
         crc32.Update(magic, 124, 96);
-        var hashBytes = BitConverter.GetBytes(crc32.Checksum);
 
         var tempKey =
-            (uint)((int)BitConverter.ToUInt32(hashBytes, 0) ^
+            (uint)((int)crc32.Checksum ^
                    (int)BitConverter.ToUInt32(magic, 108) ^ compressedSize ^ 1129510338);
         var key = GetBlowfishKey(magic, tempKey);
         blowfishKeys.Group1Keys[0] = CalcBlowfishKey(magic, key);
