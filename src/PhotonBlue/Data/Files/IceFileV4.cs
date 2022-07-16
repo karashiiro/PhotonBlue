@@ -80,8 +80,15 @@ public class IceFileV4 : IceFile
         var group2Data = new byte[Group2.RawSize];
         if (Header.Flags.HasFlag(IceFileFlags.Kraken))
         {
-            Kraken.Decompress(group1DataCompressed, Group1.CompressedSize, group1Data, Group1.RawSize);
-            Kraken.Decompress(group2DataCompressed, Group2.CompressedSize, group2Data, Group2.RawSize);
+            if (group1DataCompressed.Length > 0)
+            {
+                Kraken.Decompress(group1DataCompressed, Group1.CompressedSize, group1Data, Group1.RawSize);
+            }
+
+            if (group2DataCompressed.Length > 0)
+            {
+                Kraken.Decompress(group2DataCompressed, Group2.CompressedSize, group2Data, Group2.RawSize);
+            }
         }
         else
         {
@@ -134,12 +141,22 @@ public class IceFileV4 : IceFile
             Array.Copy(buffer, 0, block, 0, buffer.Length);
         }
         
+        // The encrypted buffer must be a multiple of 8 bytes long for Blowfish
+        // decryption, but FloatageFish requires that the buffer have its original
+        // length. This means we need to copy the data here; a zero-copy reimplementation
+        // of FloatageFish may remove the need for this copy.
+        var blockPadded = new byte[block.Length + (8 - block.Length % 8)];
+        Array.Copy(block, 0, blockPadded, 0, block.Length);
+        
         var blowfish1 = new Blowfish(BitConverter.GetBytes(key1));
         var blowfish2 = new Blowfish(BitConverter.GetBytes(key2));
         
-        blowfish1.Decrypt(ref block);
+        blowfish1.Decrypt(ref blockPadded);
         if (block.Length <= SecondPassThreshold && v3Decrypt == false)
-            blowfish2.Decrypt(ref block);
+            blowfish2.Decrypt(ref blockPadded);
+        
+        // Copy the data back to the original array with its correct size
+        Array.Copy(blockPadded, 0, block, 0, block.Length);
         
         return block;
     }
