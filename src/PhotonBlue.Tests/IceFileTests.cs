@@ -45,7 +45,7 @@ public class IceFileTests
     }
     
     [Fact]
-    public void IceFile_Parses_V4_PRS_Data_1()
+    public void IceFile_Parses_V4_PRS_Data()
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\cb1001342c1f786545795140c345f1");
         var ice = new IceFileV4(data);
@@ -57,9 +57,9 @@ public class IceFileTests
     }
     
     [Fact]
-    public void IceFile_Parses_V4_PRS_Data_2()
+    public void IceFile_Parses_V4_Encrypted_PRS_Data_1()
     {
-        using var data = File.OpenRead(@"..\..\..\..\..\testdata\0000ad8daf393f31da0fd7e26829c819");
+        using var data = File.OpenRead(@"..\..\..\..\..\testdata\000fbf4e4b152c9970398f4c82012b95");
         var ice = new IceFileV4(data);
         ice.LoadFile();
         
@@ -69,9 +69,9 @@ public class IceFileTests
     }
     
     [Fact]
-    public void IceFile_Parses_V4_Encrypted_PRS_Data()
+    public void IceFile_Parses_V4_Encrypted_PRS_Data_2()
     {
-        using var data = File.OpenRead(@"..\..\..\..\..\testdata\000fbf4e4b152c9970398f4c82012b95");
+        using var data = File.OpenRead(@"..\..\..\..\..\testdata\0000ad8daf393f31da0fd7e26829c819");
         var ice = new IceFileV4(data);
         ice.LoadFile();
         
