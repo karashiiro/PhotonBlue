@@ -79,6 +79,18 @@ public class IceFileTests
         Assert.Equal(1, ice.Group2Entries.Count);
         Assert.All(ice.Group2Entries, AssertEntryValid);
     }
+    
+    [Fact]
+    public void IceFile_Parses_V4_Encrypted_PRS_Data_3()
+    {
+        using var data = File.OpenRead(@"..\..\..\..\..\testdata\0002c97e93075ec680d89801fa640912");
+        var ice = new IceFileV4(data);
+        ice.LoadFile();
+        
+        Assert.Equal(0, ice.Group1Entries.Count);
+        Assert.Equal(1, ice.Group2Entries.Count);
+        Assert.All(ice.Group2Entries, AssertEntryValid);
+    }
 
     private static void AssertEntryValid(IceFile.FileEntry entry)
     {
