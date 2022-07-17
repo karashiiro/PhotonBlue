@@ -20,27 +20,33 @@ public class IceFile : FileResource
         public uint Magic; // ICE
         public uint Reserved1;
         public uint Version;
-        public uint Reserved2;
-        public uint Reserved3;
+        public uint Const80;
+        public uint ConstFF;
         public uint CRC32;
         public IceFileFlags Flags;
         public uint FileSize;
-        public byte[] BlowfishMagic; // 0x100 bytes
+        public byte[] BlowfishMagic; // 0x100 bytes, empty if not encrypted
 
         public static FileHeader Read(BinaryReader reader)
         {
-            return new()
+            var header = new FileHeader()
             {
                 Magic = reader.ReadUInt32(),
                 Reserved1 = reader.ReadUInt32(),
                 Version = reader.ReadUInt32(),
-                Reserved2 = reader.ReadUInt32(),
-                Reserved3 = reader.ReadUInt32(),
+                Const80 = reader.ReadUInt32(),
+                ConstFF = reader.ReadUInt32(),
                 CRC32 = reader.ReadUInt32(),
                 Flags = (IceFileFlags)reader.ReadUInt32(),
                 FileSize = reader.ReadUInt32(),
                 BlowfishMagic = reader.ReadBytes(0x100),
             };
+            
+            Debug.Assert(header.Magic == 0x454349, "Bad magic detected!");
+            Debug.Assert(header.Const80 == 0x80);
+            Debug.Assert(header.ConstFF == 0xFF);
+
+            return header;
         }
     }
 

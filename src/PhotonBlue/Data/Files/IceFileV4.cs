@@ -44,7 +44,6 @@ public class IceFileV4 : IceFile
         // Read the ICE archive header
         base.LoadFile();
         
-        Debug.Assert(Encoding.UTF8.GetString(BitConverter.GetBytes(Header.Magic)) != "ICE", "Incorrect magic number detected!");
         Debug.Assert(Header.Version == 4, "Incorrect ICE version detected!");
 
         // Decrypt the file headers, if necessary

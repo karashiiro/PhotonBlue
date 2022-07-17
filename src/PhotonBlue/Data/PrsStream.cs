@@ -18,7 +18,6 @@ public class PrsStream : Stream
     }
 
     private int _ctrlByteCounter = 0;
-    private byte _origCtrlByte = 0;
     private byte _ctrlByte = 0;
 
     private readonly Stream _stream;
@@ -38,8 +37,6 @@ public class PrsStream : Stream
 
     public override int Read(byte[] buffer, int offset, int count)
     {
-        // These variable names might be incorrect; I inferred these based on the LZ77
-        // algorithm description and other PRS implementations.
         var outIndex = offset;
         var endIndex = offset + count;
         while (outIndex < endIndex)
@@ -119,8 +116,7 @@ public class PrsStream : Stream
     {
         if (_ctrlByteCounter == 0)
         {
-            _origCtrlByte = (byte)_stream.ReadByte();
-            _ctrlByte = _origCtrlByte;
+            _ctrlByte = (byte)_stream.ReadByte();
             _ctrlByteCounter = 8;
         }
 

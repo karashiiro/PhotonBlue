@@ -23,7 +23,7 @@ public class IcePrsInputStream : Stream
     public override int Read(byte[] buffer, int offset, int count)
     {
         var n = _stream.Read(buffer, offset, count);
-        for (var i = 0; i < buffer.Length; i++)
+        for (var i = offset; i < offset + count; i++)
         {
             buffer[i] ^= 149;
         }
@@ -43,6 +43,6 @@ public class IcePrsInputStream : Stream
 
     public override void Write(byte[] buffer, int offset, int count)
     {
-        _stream.Write(buffer.Select(b => (byte)(b ^ 149)).ToArray(), offset, count);
+        throw new NotImplementedException();
     }
 }
