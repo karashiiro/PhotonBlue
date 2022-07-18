@@ -95,14 +95,11 @@ public class IceFile : FileResource
                 Reserved4 = reader.ReadBytes(0x20),
             };
 
-            // This should always end up being less than 0x20 bytes
             header.FileNameRaw = reader.ReadBytes(Convert.ToInt32(header.FileNameLength));
             
             // The name area size is a multiple of 0x10, but the name length can be less than that.
             // We need to seek to the end of the region to read the next block correctly.
             reader.Seek(0x10 - header.FileNameLength % 0x10, SeekOrigin.Current);
-
-            Debug.Assert(header.FileNameLength <= 0x20, "Unexpected file name length detected.");
 
             return header;
         }
