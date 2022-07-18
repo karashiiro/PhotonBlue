@@ -14,6 +14,11 @@ public class IceV4File : IceFile
         public uint FileCount;
         public uint CRC32;
 
+        public uint GetStoredSize()
+        {
+            return CompressedSize > 0 ? CompressedSize : RawSize;
+        }
+
         public static GroupHeader Read(BinaryReader reader)
         {
             return new()
@@ -46,8 +51,8 @@ public class IceV4File : IceFile
         Debug.Assert(Header.Version == 4, "Incorrect ICE version detected!");
 
         // Decrypt the file headers, if necessary
-        byte[] group1DataCompressed;
-        byte[] group2DataCompressed;
+        byte[] group1DataRaw;
+        byte[] group2DataRaw;
         if (Header.Flags.HasFlag(IceFileFlags.Encrypted))
         {
             var keys = GetBlowfishKeys(Header.BlowfishMagic, Convert.ToInt32(Header.FileSize));
@@ -61,17 +66,17 @@ public class IceV4File : IceFile
             Group1 = GroupHeader.Read(subReader);
             Group2 = GroupHeader.Read(subReader);
 
-            group1DataCompressed = Reader.ReadBytes(Convert.ToInt32(Group1.CompressedSize));
-            group2DataCompressed = Reader.ReadBytes(Convert.ToInt32(Group2.CompressedSize));
+            group1DataRaw = Reader.ReadBytes(Convert.ToInt32(Group1.GetStoredSize()));
+            group2DataRaw = Reader.ReadBytes(Convert.ToInt32(Group2.GetStoredSize()));
 
-            if (Group1.RawSize > 0)
+            if (group1DataRaw.Length > 0)
             {
-                DecryptGroup(group1DataCompressed, keys.Group1Keys[0], keys.Group1Keys[1]);
+                DecryptGroup(group1DataRaw, keys.Group1Keys[0], keys.Group1Keys[1]);
             }
 
-            if (Group2.RawSize > 0)
+            if (group2DataRaw.Length > 0)
             {
-                DecryptGroup(group2DataCompressed, keys.Group2Keys[0], keys.Group2Keys[1]);
+                DecryptGroup(group2DataRaw, keys.Group2Keys[0], keys.Group2Keys[1]);
             }
         }
         else
@@ -79,42 +84,45 @@ public class IceV4File : IceFile
             Group1 = GroupHeader.Read(Reader);
             Group2 = GroupHeader.Read(Reader);
             Reader.Seek(0x10, SeekOrigin.Current);
-            group1DataCompressed = Reader.ReadBytes(Convert.ToInt32(Group1.CompressedSize));
-            group2DataCompressed = Reader.ReadBytes(Convert.ToInt32(Group2.CompressedSize));
+            group1DataRaw = Reader.ReadBytes(Convert.ToInt32(Group1.GetStoredSize()));
+            group2DataRaw = Reader.ReadBytes(Convert.ToInt32(Group2.GetStoredSize()));
         }
 
         // Decompress the archive contents
-        var group1Data = new byte[Group1.RawSize];
-        var group2Data = new byte[Group2.RawSize];
-        if (Header.Flags.HasFlag(IceFileFlags.Kraken))
-        {
-            if (group1DataCompressed.Length > 0)
-            {
-                Kraken.Decompress(group1DataCompressed, Group1.CompressedSize, group1Data, Group1.RawSize);
-            }
-
-            if (group2DataCompressed.Length > 0)
-            {
-                Kraken.Decompress(group2DataCompressed, Group2.CompressedSize, group2Data, Group2.RawSize);
-            }
-        }
-        else
-        {
-            using var group1Stream = new MemoryStream(group1DataCompressed);
-            using var group1IceStream = new IcePrsInputStream(group1Stream);
-            using var group1DecompressionStream = new PrsStream(group1IceStream);
-            var group1Read = group1DecompressionStream.Read(group1Data, 0, group1Data.Length);
-            Debug.Assert(group1Read == group1Data.Length);
-
-            using var group2Stream = new MemoryStream(group2DataCompressed);
-            using var group2IceStream = new IcePrsInputStream(group2Stream);
-            using var group2DecompressionStream = new PrsStream(group2IceStream);
-            var group2Read = group2DecompressionStream.Read(group2Data, 0, group2Data.Length);
-            Debug.Assert(group2Read == group2Data.Length);
-        }
+        var group1Data = HandleGroupDecompression(Group1, group1DataRaw);
+        var group2Data = HandleGroupDecompression(Group2, group2DataRaw);
 
         Group1Entries = UnpackGroup(Group1, group1Data);
         Group2Entries = UnpackGroup(Group2, group2Data);
+    }
+
+    private byte[] HandleGroupDecompression(GroupHeader group, byte[] data)
+    {
+        if (group.CompressedSize > 0)
+        {
+            var result = new byte[group.RawSize];
+            DecompressGroup(group, data, result);
+            return result;
+        }
+        
+        return data;
+    }
+
+    private void DecompressGroup(GroupHeader group, byte[] compressed, byte[] result)
+    {
+        if (Header.Flags.HasFlag(IceFileFlags.Kraken))
+        {
+            var nRead = Kraken.Decompress(compressed, group.CompressedSize, result, group.RawSize);
+            Debug.Assert(nRead == result.Length);
+        }
+        else
+        {
+            using var mem = new MemoryStream(compressed);
+            using var prsInput = new IcePrsInputStream(mem);
+            using var decompressionStream = new PrsStream(prsInput);
+            var nRead = decompressionStream.Read(result, 0, result.Length);
+            Debug.Assert(nRead == result.Length);
+        }
     }
 
     private static FileEntry[] UnpackGroup(GroupHeader header, byte[] data)
