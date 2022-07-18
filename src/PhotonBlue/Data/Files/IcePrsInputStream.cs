@@ -31,6 +31,11 @@ public class IcePrsInputStream : Stream
         return n;
     }
 
+    public override int ReadByte()
+    {
+        return _stream.ReadByte() ^ 149;
+    }
+
     public override long Seek(long offset, SeekOrigin origin)
     {
         return _stream.Seek(offset, origin);
