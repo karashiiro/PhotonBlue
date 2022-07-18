@@ -106,7 +106,7 @@ public class IceFileTests
 
     private static void AssertEntryValid(IceFile.FileEntry entry)
     {
-        Assert.True(entry.Header.FileNameRaw.Length <= 0x20);
+        Assert.True(entry.Header.FileNameRaw.Length > 0);
         Assert.True(entry.Header.DataSize == entry.Data.Length);
     }
 }
