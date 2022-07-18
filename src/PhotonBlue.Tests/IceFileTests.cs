@@ -10,7 +10,7 @@ public class IceFileTests
     public void IceFile_Parses_V4_Kraken_Data_1()
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\b568a6a6c428485a57b67a1da466de");
-        var ice = new IceFileV4(data);
+        var ice = new IceV4File(data);
         ice.LoadFile();
         
         Assert.Equal(1, ice.Group1Entries.Count);
@@ -24,7 +24,7 @@ public class IceFileTests
     public void IceFile_Parses_V4_Kraken_Data_2()
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\0000064b91444b04df5d95f6a0bc55be");
-        var ice = new IceFileV4(data);
+        var ice = new IceV4File(data);
         ice.LoadFile();
         
         Assert.Equal(0, ice.Group1Entries.Count);
@@ -36,7 +36,7 @@ public class IceFileTests
     public void IceFile_Parses_V4_Encrypted_Kraken_Data()
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\74cdd2b68f9614e70dd0b67a80e4d723");
-        var ice = new IceFileV4(data);
+        var ice = new IceV4File(data);
         ice.LoadFile();
         
         Assert.Equal(0, ice.Group1Entries.Count);
@@ -48,7 +48,7 @@ public class IceFileTests
     public void IceFile_Parses_V4_PRS_Data()
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\cb1001342c1f786545795140c345f1");
-        var ice = new IceFileV4(data);
+        var ice = new IceV4File(data);
         ice.LoadFile();
         
         Assert.Equal(0, ice.Group1Entries.Count);
@@ -60,7 +60,7 @@ public class IceFileTests
     public void IceFile_Parses_V4_Encrypted_PRS_Data_1()
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\000fbf4e4b152c9970398f4c82012b95");
-        var ice = new IceFileV4(data);
+        var ice = new IceV4File(data);
         ice.LoadFile();
         
         Assert.Equal(0, ice.Group1Entries.Count);
@@ -72,7 +72,7 @@ public class IceFileTests
     public void IceFile_Parses_V4_Encrypted_PRS_Data_2()
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\0000ad8daf393f31da0fd7e26829c819");
-        var ice = new IceFileV4(data);
+        var ice = new IceV4File(data);
         ice.LoadFile();
         
         Assert.Equal(0, ice.Group1Entries.Count);
@@ -84,7 +84,7 @@ public class IceFileTests
     public void IceFile_Parses_V4_Encrypted_PRS_Data_3()
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\0002c97e93075ec680d89801fa640912");
-        var ice = new IceFileV4(data);
+        var ice = new IceV4File(data);
         ice.LoadFile();
         
         Assert.Equal(0, ice.Group1Entries.Count);

@@ -69,7 +69,7 @@ public class GameFileIndexer : IGameFileIndexer
                 if (magicStr == "ICE")
                 {
                     reader.BaseStream.Seek(0, SeekOrigin.Begin);
-                    using var ice = new IceFileV4(reader.BaseStream);
+                    using var ice = new IceV4File(reader.BaseStream);
                     ice.LoadFile();
 
                     return ice.Group1Entries

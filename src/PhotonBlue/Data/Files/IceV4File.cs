@@ -1,12 +1,11 @@
 ﻿using System.Diagnostics;
-using System.Text;
 using PhotonBlue.Cryptography;
 using PhotonBlue.Extensions;
 using PhotonBlue.Ooz;
 
 namespace PhotonBlue.Data.Files;
 
-public class IceFileV4 : IceFile
+public class IceV4File : IceFile
 {
     public struct GroupHeader
     {
@@ -33,7 +32,7 @@ public class IceFileV4 : IceFile
     public IList<FileEntry> Group1Entries { get; private set; }
     public IList<FileEntry> Group2Entries { get; private set; }
 
-    public IceFileV4(Stream data) : base(data)
+    public IceV4File(Stream data) : base(data)
     {
         Group1Entries = Array.Empty<FileEntry>();
         Group2Entries = Array.Empty<FileEntry>();
@@ -62,11 +61,18 @@ public class IceFileV4 : IceFile
             Group1 = GroupHeader.Read(subReader);
             Group2 = GroupHeader.Read(subReader);
 
-            var encryptedGroup1Data = Reader.ReadBytes(Convert.ToInt32(Group1.CompressedSize));
-            var encryptedGroup2Data = Reader.ReadBytes(Convert.ToInt32(Group2.CompressedSize));
+            group1DataCompressed = Reader.ReadBytes(Convert.ToInt32(Group1.CompressedSize));
+            group2DataCompressed = Reader.ReadBytes(Convert.ToInt32(Group2.CompressedSize));
 
-            group1DataCompressed = DecryptGroup(encryptedGroup1Data, keys.Group1Keys[0], keys.Group1Keys[1]);
-            group2DataCompressed = DecryptGroup(encryptedGroup2Data, keys.Group2Keys[0], keys.Group2Keys[1]);
+            if (Group1.RawSize > 0)
+            {
+                DecryptGroup(group1DataCompressed, keys.Group1Keys[0], keys.Group1Keys[1]);
+            }
+
+            if (Group2.RawSize > 0)
+            {
+                DecryptGroup(group2DataCompressed, keys.Group2Keys[0], keys.Group2Keys[1]);
+            }
         }
         else
         {
@@ -132,28 +138,18 @@ public class IceFileV4 : IceFile
 
     private const int SecondPassThreshold = 102400;
 
-    private static byte[] DecryptGroup(byte[] buffer, uint key1, uint key2)
+    private static void DecryptGroup(byte[] buffer, uint key1, uint key2)
     {
-        var block = FloatageFish.DecryptBlock(buffer, (uint)buffer.Length, key1, 16);
-        
-        // The encrypted buffer must be a multiple of 8 bytes long for Blowfish
-        // decryption, but FloatageFish requires that the buffer have its original
-        // length. This means we need to copy the data here; a zero-copy reimplementation
-        // of FloatageFish may remove the need for this copy.
-        var blockPadded = new byte[block.Length + (8 - block.Length % 8)];
-        Array.Copy(block, 0, blockPadded, 0, block.Length);
+        FloatageFish.DecryptBlock(buffer, (uint)buffer.Length, key1, 16);
         
         var blowfish1 = new Blowfish(BitConverter.GetBytes(key1));
         var blowfish2 = new Blowfish(BitConverter.GetBytes(key2));
         
-        blowfish1.Decrypt(ref blockPadded);
-        if (block.Length <= SecondPassThreshold)
-            blowfish2.Decrypt(ref blockPadded);
-        
-        // Copy the data back to the original array with its correct size
-        Array.Copy(blockPadded, 0, block, 0, block.Length);
-        
-        return block;
+        blowfish1.Decrypt(ref buffer);
+        if (buffer.Length <= SecondPassThreshold)
+        {
+            blowfish2.Decrypt(ref buffer);
+        }
     }
 
     private static BlowfishKeys GetBlowfishKeys(byte[] magic, int compressedSize)
@@ -174,7 +170,7 @@ public class IceFileV4 : IceFile
         blowfishKeys.Group2Keys[1] = blowfishKeys.Group1Keys[1] >> 15 | blowfishKeys.Group1Keys[1] << 17;
 
         var x = blowfishKeys.Group1Keys[0] << 13 | blowfishKeys.Group1Keys[0] >> 19;
-        blowfishKeys.GroupHeadersKey = BitConverter.ToUInt32(BitConverter.GetBytes(x));
+        blowfishKeys.GroupHeadersKey = x;
 
         return blowfishKeys;
     }

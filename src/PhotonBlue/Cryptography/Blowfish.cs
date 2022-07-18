@@ -219,6 +219,7 @@ public class Blowfish
 
     public byte[] Encrypt(byte[] data)
     {
+        // TODO: Make this not pad the data; see below.
         var paddedLength = data.Length % 8 == 0 ? data.Length : data.Length + (8 - (data.Length % 8));
         var buffer = new byte[paddedLength];
         Buffer.BlockCopy(data, 0, buffer, 0, data.Length);
@@ -235,7 +236,9 @@ public class Blowfish
 
     public void Decrypt(ref byte[] data)
     {
-        for (var i = 0; i < data.Length; i += 8)
+        // SEGA seems to have rolled their own Blowfish implementation which ignores
+        // the last (8 - data.Length % 8) bytes. This is as dumb as it is unsurprising.
+        for (var i = 0; i + 7 < data.Length; i += 8)
         {
             var (l, r) = Decrypt(BitConverter.ToUInt32(data, i), BitConverter.ToUInt32(data, i + 4));
             CopyUInt32IntoArray(data, l, i);
@@ -299,6 +302,10 @@ public class Blowfish
 
             for (var j = 0; j < 4 && enumerator.MoveNext(); j++)
             {
+                // This Blowfish implementation was written for the FFXIV launcher, and
+                // casts enumerator.Current to an sbyte deliberately; Square Enix rolled
+                // their own Blowfish implementation and incorrectly used a signed byte
+                // here. I have removed that, here.
                 n = (n << 8) | enumerator.Current;
             }
 
