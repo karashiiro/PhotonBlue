@@ -147,6 +147,9 @@ public class BlowfishDecryptionStream : Stream
 
     public override long Seek(long offset, SeekOrigin origin)
     {
+        // This can't meaningfully be implemented. Seeking to a point in the
+        // file requires decrypting everything before it so that the Blowfish
+        // tables are in the correct state to continue reading data.
         throw new NotSupportedException();
     }
 
