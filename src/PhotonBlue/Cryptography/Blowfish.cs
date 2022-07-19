@@ -1,4 +1,6 @@
-﻿namespace PhotonBlue.Cryptography;
+﻿using System.Runtime.CompilerServices;
+
+namespace PhotonBlue.Cryptography;
 
 public class Blowfish
 {
@@ -264,6 +266,7 @@ public class Blowfish
         dest[offset + 3] = (byte)((val >> 24) & 0xFF);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private uint F(uint i)
     {
         return ((s[0, i >> 24] + s[1, (i >> 16) & 0xFF]) ^ s[2, (i >> 8) & 0xFF]) + s[3, i & 0xFF];
