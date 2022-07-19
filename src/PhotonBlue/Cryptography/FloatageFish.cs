@@ -2,10 +2,21 @@
 
 public class FloatageFish
 {
-    public static void DecryptBlock(byte[] dataBlock, uint length, uint key, int shift)
+    public static byte DecryptByte(byte data, uint key, int shift)
     {
         var xorByte = (byte)(((key >> shift) ^ key) & 0xFF);
-        for (uint i = 0; i < length; ++i)
+        if (data != 0 && data != xorByte)
+        {
+            return (byte)(data ^ xorByte);
+        }
+
+        return data;
+    }
+    
+    public static void DecryptBlock(byte[] dataBlock, uint offset, uint length, uint key, int shift)
+    {
+        var xorByte = (byte)(((key >> shift) ^ key) & 0xFF);
+        for (var i = offset; i < length; ++i)
         {
             if (dataBlock[i] != 0 && dataBlock[i] != xorByte)
             {

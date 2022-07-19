@@ -233,6 +233,16 @@ public class Blowfish
 
         return buffer;
     }
+    
+    public void DecryptStandard(ref byte[] data)
+    {
+        for (var i = 0; i < data.Length; i += 8)
+        {
+            var (l, r) = Decrypt(BitConverter.ToUInt32(data, i), BitConverter.ToUInt32(data, i + 4));
+            CopyUInt32IntoArray(data, l, i);
+            CopyUInt32IntoArray(data, r, i + 4);
+        }
+    }
 
     public void Decrypt(ref byte[] data)
     {

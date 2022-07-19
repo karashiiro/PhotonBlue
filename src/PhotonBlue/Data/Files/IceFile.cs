@@ -41,7 +41,7 @@ public class IceFile : FileResource
                 FileSize = reader.ReadUInt32(),
                 BlowfishMagic = reader.ReadBytes(0x100),
             };
-            
+
             Debug.Assert(header.Magic == 0x454349, "Bad magic detected!");
             Debug.Assert(header.Const80 == 0x80);
             Debug.Assert(header.ConstFF == 0xFF);
@@ -53,6 +53,7 @@ public class IceFile : FileResource
     public struct FileEntry
     {
         public FileEntryHeader Header;
+
         // ReSharper disable once FieldCanBeMadeReadOnly.Global
         public byte[] Data;
 
@@ -60,7 +61,7 @@ public class IceFile : FileResource
         {
             Header = header;
             Data = data;
-            
+
             Debug.Assert(Header.DataSize == Data.Length, "File data size mismatch.");
         }
     }
@@ -68,7 +69,7 @@ public class IceFile : FileResource
     public struct FileEntryHeader
     {
         public uint Magic;
-        public uint FileSize;
+        public uint EntrySize;
         public uint DataSize; // Size without this header
         public uint HeaderSize;
         public uint FileNameLength;
@@ -78,14 +79,14 @@ public class IceFile : FileResource
         public byte[] Reserved4; // 0x20 bytes
         public byte[] FileNameRaw;
 
-        public string FileName => Encoding.UTF8.GetString(FileNameRaw);
+        public string FileName => Encoding.UTF8.GetString(FileNameRaw).TrimEnd('\u0000');
 
         public static FileEntryHeader Read(BinaryReader reader)
         {
             var header = new FileEntryHeader
             {
                 Magic = reader.ReadUInt32(),
-                FileSize = reader.ReadUInt32(),
+                EntrySize = reader.ReadUInt32(),
                 DataSize = reader.ReadUInt32(),
                 HeaderSize = reader.ReadUInt32(),
                 FileNameLength = reader.ReadUInt32(),
@@ -94,12 +95,16 @@ public class IceFile : FileResource
                 Reserved3 = reader.ReadUInt32(),
                 Reserved4 = reader.ReadBytes(0x20),
             };
+            
+            Debug.Assert(header.EntrySize > 0x40, "File size mismatch detected.");
+            Debug.Assert(header.HeaderSize > 0x40, "Header size mismatch detected.");
 
             header.FileNameRaw = reader.ReadBytes(Convert.ToInt32(header.FileNameLength));
-            
+
             // The name area size is a multiple of 0x10, but the name length can be less than that.
             // We need to seek to the end of the region to read the next block correctly.
             reader.Seek(0x10 - header.FileNameLength % 0x10, SeekOrigin.Current);
+            Debug.Assert(header.FileNameLength < header.HeaderSize, "Unexpected file name length detected.");
 
             return header;
         }

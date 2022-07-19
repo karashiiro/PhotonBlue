@@ -44,15 +44,15 @@ public class PrsStream : Stream
             while (GetControlBit())
             {
                 // Raw data read
-                buffer[outIndex++] = (byte)_stream.ReadByte();
+                buffer[outIndex++] = (byte)GetNextByte();
             }
 
             int controlOffset;
             int controlSize;
             if (GetControlBit())
             {
-                var data0 = _stream.ReadByte();
-                var data1 = _stream.ReadByte();
+                var data0 = GetNextByte();
+                var data1 = GetNextByte();
                 if (data0 == 0 && data1 == 0)
                 {
                     // EOF
@@ -65,7 +65,7 @@ public class PrsStream : Stream
                 if (controlSize == 0)
                 {
                     // Long search; long size
-                    controlSize = _stream.ReadByte() + MinLongCopyLength;
+                    controlSize = GetNextByte() + MinLongCopyLength;
                 }
                 else
                 {
@@ -81,8 +81,8 @@ public class PrsStream : Stream
                     controlSize += 2;
                 if (GetControlBit())
                     ++controlSize;
-
-                controlOffset = _stream.ReadByte() - 256;
+                
+                controlOffset = GetNextByte() - 256;
             }
 
             Debug.Assert(controlOffset != 0 && outIndex >= Math.Abs(controlOffset), "Bad copy instruction detected.");
@@ -95,6 +95,13 @@ public class PrsStream : Stream
         }
 
         return outIndex - offset;
+    }
+
+    private int GetNextByte()
+    {
+        var next = _stream.ReadByte();
+        Debug.Assert(next != -1, "Unexpected end of stream.");
+        return next;
     }
 
     public override long Seek(long offset, SeekOrigin origin)
@@ -116,7 +123,10 @@ public class PrsStream : Stream
     {
         if (_ctrlByteCounter == 0)
         {
-            _ctrlByte = (byte)_stream.ReadByte();
+            var next = _stream.ReadByte();
+            Debug.Assert(next != -1, "Unexpected end of stream.");
+            
+            _ctrlByte = (byte)next;
             _ctrlByteCounter = 8;
         }
 

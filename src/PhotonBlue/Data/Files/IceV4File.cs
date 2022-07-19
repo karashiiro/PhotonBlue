@@ -47,19 +47,20 @@ public class IceV4File : IceFile
     {
         // Read the ICE archive header
         base.LoadFile();
-        
+
         Debug.Assert(Header.Version == 4, "Incorrect ICE version detected!");
 
         // Decrypt the file headers, if necessary
+        var keys = new BlowfishKeys();
         byte[] group1DataRaw;
         byte[] group2DataRaw;
         if (Header.Flags.HasFlag(IceFileFlags.Encrypted))
         {
-            var keys = GetBlowfishKeys(Header.BlowfishMagic, Convert.ToInt32(Header.FileSize));
+            GetBlowfishKeys(keys, Header.BlowfishMagic, Convert.ToInt32(Header.FileSize));
             var headersRaw = Reader.ReadBytes(0x30);
             var blowfish = new Blowfish(BitConverter.GetBytes(keys.GroupHeadersKey));
             blowfish.Decrypt(ref headersRaw);
-            
+
             using var headersMem = new MemoryStream(headersRaw);
             using var subReader = new BinaryReader(headersMem);
 
@@ -68,16 +69,6 @@ public class IceV4File : IceFile
 
             group1DataRaw = Reader.ReadBytes(Convert.ToInt32(Group1.GetStoredSize()));
             group2DataRaw = Reader.ReadBytes(Convert.ToInt32(Group2.GetStoredSize()));
-
-            if (group1DataRaw.Length > 0)
-            {
-                DecryptGroup(group1DataRaw, keys.Group1Keys[0], keys.Group1Keys[1]);
-            }
-
-            if (group2DataRaw.Length > 0)
-            {
-                DecryptGroup(group2DataRaw, keys.Group2Keys[0], keys.Group2Keys[1]);
-            }
         }
         else
         {
@@ -89,39 +80,104 @@ public class IceV4File : IceFile
         }
 
         // Decompress the archive contents
-        var group1Data = HandleGroupDecompression(Group1, group1DataRaw);
-        var group2Data = HandleGroupDecompression(Group2, group2DataRaw);
+        var group1Data = HandleGroupExtraction(Group1, keys.GroupDataKeys[0], group1DataRaw);
+        var group2Data = HandleGroupExtraction(Group2, keys.GroupDataKeys[1], group2DataRaw);
 
         Group1Entries = UnpackGroup(Group1, group1Data);
         Group2Entries = UnpackGroup(Group2, group2Data);
     }
 
-    private byte[] HandleGroupDecompression(GroupHeader group, byte[] data)
+    private byte[] HandleGroupExtraction(GroupHeader group, IReadOnlyList<uint> keys, byte[] data)
     {
-        if (group.CompressedSize > 0)
+        if (data.Length == 0)
         {
-            var result = new byte[group.RawSize];
-            DecompressGroup(group, data, result);
-            return result;
+            return data;
         }
-        
-        return data;
+
+        // We only need to allocate a new array if we need to decompress the data; otherwise
+        // we can decode it in-place.
+        var result = group.CompressedSize > 0 ? new byte[group.RawSize] : data;
+        DecodeGroup(group, keys, data, ref result);
+        return result;
     }
 
-    private void DecompressGroup(GroupHeader group, byte[] compressed, byte[] result)
+    private void DecodeGroup(GroupHeader group, IReadOnlyList<uint> keys, byte[] data, ref byte[] result)
     {
+        // TODO: Refactor all of this again
         if (Header.Flags.HasFlag(IceFileFlags.Kraken))
         {
-            var nRead = Kraken.Decompress(compressed, group.CompressedSize, result, group.RawSize);
-            Debug.Assert(nRead == result.Length);
+            if (Header.Flags.HasFlag(IceFileFlags.Encrypted))
+            {
+                DecryptGroup(data, keys[0], keys[1]);
+            }
+
+            if (group.CompressedSize > 0)
+            {
+                var nRead = Kraken.Decompress(data, group.CompressedSize, result, group.RawSize);
+                Debug.Assert(nRead != -1, "Decompression failed due to an error.");
+                Debug.Assert(nRead == result.Length, "Decompression gave unexpected uncompressed size.");
+            }
+            else
+            {
+                result = data;
+            }
+        }
+        else if (Header.Flags.HasFlag(IceFileFlags.Encrypted) && data.Length > SecondPassThreshold)
+        {
+            // Encrypted PRS, one pass
+            using var mem = new MemoryStream(data);
+            using var floatageFish = new FloatageFishDecryptionStream(mem, keys[0], 16);
+            using var blowfish = new BlowfishDecryptionStream(floatageFish, BitConverter.GetBytes(keys[0]));
+
+            if (group.CompressedSize > 0)
+            {
+                using var prsInput = new IcePrsInputStream(blowfish);
+                using var decompressionStream = new PrsStream(prsInput);
+                var nRead = decompressionStream.Read(result, 0, result.Length);
+                Debug.Assert(nRead == result.Length, "Decompression gave unexpected uncompressed size.");
+            }
+            else
+            {
+                var nRead = blowfish.Read(result, 0, result.Length);
+                Debug.Assert(nRead == result.Length, "Decryption gave unexpected uncompressed size.");
+            }
+        }
+        else if (Header.Flags.HasFlag(IceFileFlags.Encrypted) && data.Length <= SecondPassThreshold)
+        {
+            // Encrypted PRS, two passes
+            using var mem = new MemoryStream(data);
+            using var floatageFish = new FloatageFishDecryptionStream(mem, keys[0], 16);
+            using var blowfish1 = new BlowfishDecryptionStream(floatageFish, BitConverter.GetBytes(keys[0]));
+            using var blowfish2 = new BlowfishDecryptionStream(blowfish1, BitConverter.GetBytes(keys[1]));
+
+            if (group.CompressedSize > 0)
+            {
+                using var prsInput = new IcePrsInputStream(blowfish2);
+                using var decompressionStream = new PrsStream(prsInput);
+                var nRead = decompressionStream.Read(result, 0, result.Length);
+                Debug.Assert(nRead == result.Length, "Decompression gave unexpected uncompressed size.");
+            }
+            else
+            {
+                var nRead = blowfish2.Read(result, 0, result.Length);
+                Debug.Assert(nRead == result.Length, "Decryption gave unexpected uncompressed size.");
+            }
         }
         else
         {
-            using var mem = new MemoryStream(compressed);
-            using var prsInput = new IcePrsInputStream(mem);
-            using var decompressionStream = new PrsStream(prsInput);
-            var nRead = decompressionStream.Read(result, 0, result.Length);
-            Debug.Assert(nRead == result.Length);
+            // Unencrypted PRS
+            if (group.CompressedSize > 0)
+            {
+                using var mem = new MemoryStream(data);
+                using var prsInput = new IcePrsInputStream(mem);
+                using var decompressionStream = new PrsStream(prsInput);
+                var nRead = decompressionStream.Read(result, 0, result.Length);
+                Debug.Assert(nRead == result.Length, "Decompression gave unexpected uncompressed size.");
+            }
+            else
+            {
+                result = data;
+            }
         }
     }
 
@@ -132,13 +188,12 @@ public class IceV4File : IceFile
         return Enumerable.Repeat(br, Convert.ToInt32(header.FileCount))
             .Select(reader =>
             {
-                var basePos = reader.BaseStream.Position;
                 var entryHeader = FileEntryHeader.Read(reader);
-                // There seems to sometimes be a gap between the entry header and the entry data that isn't
-                // accounted for any documentation. It doesn't seem to be related to the file name length,
-                // but I may be wrong. This occurs in win32/0000064b91444b04df5d95f6a0bc55be.
-                reader.Seek(basePos + (entryHeader.FileSize - entryHeader.DataSize), SeekOrigin.Begin);
                 var entryData = reader.ReadBytes(Convert.ToInt32(entryHeader.DataSize));
+                // Files are padded to be 16-byte aligned if they aren't naturally like that. I don't
+                // know if the game reads this padding as data or not. Zamboni does read this as data.
+                var padding = entryHeader.EntrySize - entryHeader.DataSize - entryHeader.HeaderSize;
+                reader.Seek(padding, SeekOrigin.Current);
                 return new FileEntry(entryHeader, entryData);
             })
             .ToArray();
@@ -148,22 +203,24 @@ public class IceV4File : IceFile
 
     private static void DecryptGroup(byte[] buffer, uint key1, uint key2)
     {
-        FloatageFish.DecryptBlock(buffer, (uint)buffer.Length, key1, 16);
-        
-        var blowfish1 = new Blowfish(BitConverter.GetBytes(key1));
-        var blowfish2 = new Blowfish(BitConverter.GetBytes(key2));
-        
-        blowfish1.Decrypt(ref buffer);
+        using var mem = new MemoryStream(buffer);
+        using var floatageFish = new FloatageFishDecryptionStream(mem, key1, 16);
+        using var blowfish1 = new BlowfishDecryptionStream(floatageFish, BitConverter.GetBytes(key1));
         if (buffer.Length <= SecondPassThreshold)
         {
-            blowfish2.Decrypt(ref buffer);
+            using var blowfish2 = new BlowfishDecryptionStream(blowfish1, BitConverter.GetBytes(key2));
+            var nRead = blowfish2.Read(buffer, 0, buffer.Length);
+            Debug.Assert(nRead == buffer.Length);
+        }
+        else
+        {
+            var nRead = blowfish1.Read(buffer, 0, buffer.Length);
+            Debug.Assert(nRead == buffer.Length);
         }
     }
 
-    private static BlowfishKeys GetBlowfishKeys(byte[] magic, int compressedSize)
+    private static void GetBlowfishKeys(BlowfishKeys blowfishKeys, byte[] magic, int compressedSize)
     {
-        var blowfishKeys = new BlowfishKeys();
-
         var crc32 = new Crc32();
         crc32.Init();
         crc32.Update(magic, 124, 96);
@@ -172,15 +229,15 @@ public class IceV4File : IceFile
             (uint)((int)crc32.Checksum ^
                    (int)BitConverter.ToUInt32(magic, 108) ^ compressedSize ^ 1129510338);
         var key = GetBlowfishKey(magic, tempKey);
-        blowfishKeys.Group1Keys[0] = CalcBlowfishKey(magic, key);
-        blowfishKeys.Group1Keys[1] = GetBlowfishKey(magic, blowfishKeys.Group1Keys[0]);
-        blowfishKeys.Group2Keys[0] = blowfishKeys.Group1Keys[0] >> 15 | blowfishKeys.Group1Keys[0] << 17;
-        blowfishKeys.Group2Keys[1] = blowfishKeys.Group1Keys[1] >> 15 | blowfishKeys.Group1Keys[1] << 17;
+        blowfishKeys.GroupDataKeys[0][0] = CalcBlowfishKey(magic, key);
+        blowfishKeys.GroupDataKeys[0][1] = GetBlowfishKey(magic, blowfishKeys.GroupDataKeys[0][0]);
+        blowfishKeys.GroupDataKeys[1][0] =
+            blowfishKeys.GroupDataKeys[0][0] >> 15 | blowfishKeys.GroupDataKeys[0][0] << 17;
+        blowfishKeys.GroupDataKeys[1][1] =
+            blowfishKeys.GroupDataKeys[0][1] >> 15 | blowfishKeys.GroupDataKeys[0][1] << 17;
 
-        var x = blowfishKeys.Group1Keys[0] << 13 | blowfishKeys.Group1Keys[0] >> 19;
+        var x = blowfishKeys.GroupDataKeys[0][0] << 13 | blowfishKeys.GroupDataKeys[0][0] >> 19;
         blowfishKeys.GroupHeadersKey = x;
-
-        return blowfishKeys;
     }
 
     private static uint CalcBlowfishKey(IReadOnlyList<byte> magic, uint tempKey)
@@ -209,8 +266,13 @@ public class IceV4File : IceFile
     {
         public uint GroupHeadersKey;
 
-        public uint[] Group1Keys { get; } = new uint[2];
+        public uint[][] GroupDataKeys { get; }
 
-        public uint[] Group2Keys { get; } = new uint[2];
+        public BlowfishKeys()
+        {
+            GroupDataKeys = new uint[2][];
+            GroupDataKeys[0] = new uint[2];
+            GroupDataKeys[1] = new uint[2];
+        }
     }
 }
