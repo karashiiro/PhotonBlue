@@ -97,86 +97,87 @@ public class IceV4File : IceFile
         // We only need to allocate a new array if we need to decompress the data; otherwise
         // we can decode it in-place.
         var result = group.CompressedSize > 0 ? new byte[group.RawSize] : data;
-        DecodeGroup(group, keys, data, ref result);
+        DecodeGroup(group, keys, data, result);
         return result;
     }
+    
+    private const int SecondPassThreshold = 102400;
 
-    private void DecodeGroup(GroupHeader group, IReadOnlyList<uint> keys, byte[] data, ref byte[] result)
+    /// <summary>
+    /// Decrypts and decompresses an ICE group.
+    /// </summary>
+    /// <param name="group">The group header.</param>
+    /// <param name="keys">The group's decryption keys, if the file is encrypted.</param>
+    /// <param name="data">The raw group data.</param>
+    /// <param name="result">The buffer that should contain the result data.</param>
+    private void DecodeGroup(GroupHeader group, IReadOnlyList<uint> keys, byte[] data, byte[] result)
     {
-        // TODO: Refactor all of this again
-        if (Header.Flags.HasFlag(IceFileFlags.Kraken))
-        {
-            if (Header.Flags.HasFlag(IceFileFlags.Encrypted))
-            {
-                DecryptGroup(data, keys[0], keys[1]);
-            }
+        using var mem = new MemoryStream(data);
+        var decryptStream = PrepareGroupDecryption(mem, keys);
+        DecompressGroup(group, decryptStream, data, result);
+    }
 
-            if (group.CompressedSize > 0)
+    /// <summary>
+    /// Prepares a decryption stream over the provided encrypted group data stream.
+    /// </summary>
+    /// <param name="data">The group data stream.</param>
+    /// <param name="keys">The group's decryption keys, if the file is encrypted.</param>
+    /// <returns>A new stream that can decrypt data while reading it in.</returns>
+    private Stream PrepareGroupDecryption(Stream data, IReadOnlyList<uint> keys)
+    {
+        var decryptStream = data;
+        if (Header.Flags.HasFlag(IceFileFlags.Encrypted))
+        {
+            // These are all managed streams without disposable resources, so we
+            // don't need to worry about disposing them properly.
+            var floatageFish = new FloatageFishDecryptionStream(data, keys[0], 16);
+            decryptStream = new BlowfishDecryptionStream(floatageFish, BitConverter.GetBytes(keys[0]));
+            if (data.Length <= SecondPassThreshold)
             {
-                var nRead = Kraken.Decompress(data, group.CompressedSize, result, group.RawSize);
-                Debug.Assert(nRead != -1, "Decompression failed due to an error.");
-                Debug.Assert(nRead == result.Length, "Decompression gave unexpected uncompressed size.");
-            }
-            else
-            {
-                result = data;
+                decryptStream = new BlowfishDecryptionStream(decryptStream, BitConverter.GetBytes(keys[1]));
             }
         }
-        else if (Header.Flags.HasFlag(IceFileFlags.Encrypted) && data.Length > SecondPassThreshold)
-        {
-            // Encrypted PRS, one pass
-            using var mem = new MemoryStream(data);
-            using var floatageFish = new FloatageFishDecryptionStream(mem, keys[0], 16);
-            using var blowfish = new BlowfishDecryptionStream(floatageFish, BitConverter.GetBytes(keys[0]));
 
-            if (group.CompressedSize > 0)
-            {
-                using var prsInput = new IcePrsInputStream(blowfish);
-                using var decompressionStream = new PrsStream(prsInput);
-                var nRead = decompressionStream.Read(result, 0, result.Length);
-                Debug.Assert(nRead == result.Length, "Decompression gave unexpected uncompressed size.");
-            }
-            else
-            {
-                var nRead = blowfish.Read(result, 0, result.Length);
-                Debug.Assert(nRead == result.Length, "Decryption gave unexpected uncompressed size.");
-            }
-        }
-        else if (Header.Flags.HasFlag(IceFileFlags.Encrypted) && data.Length <= SecondPassThreshold)
-        {
-            // Encrypted PRS, two passes
-            using var mem = new MemoryStream(data);
-            using var floatageFish = new FloatageFishDecryptionStream(mem, keys[0], 16);
-            using var blowfish1 = new BlowfishDecryptionStream(floatageFish, BitConverter.GetBytes(keys[0]));
-            using var blowfish2 = new BlowfishDecryptionStream(blowfish1, BitConverter.GetBytes(keys[1]));
+        return decryptStream;
+    }
 
-            if (group.CompressedSize > 0)
-            {
-                using var prsInput = new IcePrsInputStream(blowfish2);
-                using var decompressionStream = new PrsStream(prsInput);
-                var nRead = decompressionStream.Read(result, 0, result.Length);
-                Debug.Assert(nRead == result.Length, "Decompression gave unexpected uncompressed size.");
-            }
-            else
-            {
-                var nRead = blowfish2.Read(result, 0, result.Length);
-                Debug.Assert(nRead == result.Length, "Decryption gave unexpected uncompressed size.");
-            }
-        }
-        else
+    /// <summary>
+    /// Decompresses an ICE group.
+    /// </summary>
+    /// <param name="group">The group header.</param>
+    /// <param name="inputStream">The input stream of decrypted group data.</param>
+    /// <param name="scratch">An array of a size equal to the input data, used for reading in temporary data.</param>
+    /// <param name="result">The buffer that should contain the result data.</param>
+    private void DecompressGroup(GroupHeader group, Stream inputStream, byte[] scratch, byte[] result)
+    {
+        switch (group.CompressedSize)
         {
-            // Unencrypted PRS
-            if (group.CompressedSize > 0)
+            case > 0 when Header.Flags.HasFlag(IceFileFlags.Kraken):
             {
-                using var mem = new MemoryStream(data);
-                using var prsInput = new IcePrsInputStream(mem);
-                using var decompressionStream = new PrsStream(prsInput);
-                var nRead = decompressionStream.Read(result, 0, result.Length);
-                Debug.Assert(nRead == result.Length, "Decompression gave unexpected uncompressed size.");
+                // Kraken decompression
+                var nRead1 = inputStream.Read(scratch, 0, scratch.Length);
+                Debug.Assert(nRead1 == scratch.Length, "Decryption gave unexpected decrypted data size.");
+            
+                var nRead2 = Kraken.Decompress(scratch, group.CompressedSize, result, group.RawSize);
+                Debug.Assert(nRead2 != -1, "Kraken decompression failed due to an error.");
+                Debug.Assert(nRead2 == result.Length, "Kraken decompression gave unexpected uncompressed size.");
+                break;
             }
-            else
+            case > 0:
             {
-                result = data;
+                // PRS decompression
+                var prsInput = new IcePrsInputStream(inputStream);
+                var decompressionStream = new PrsStream(prsInput);
+                var nRead = decompressionStream.Read(result, 0, result.Length);
+                Debug.Assert(nRead == result.Length, "PRS decompression gave unexpected uncompressed size.");
+                break;
+            }
+            default:
+            {
+                // Uncompressed data
+                var nRead = inputStream.Read(result, 0, result.Length);
+                Debug.Assert(nRead == result.Length, "Decryption gave unexpected decrypted data size.");
+                break;
             }
         }
     }
@@ -197,26 +198,6 @@ public class IceV4File : IceFile
                 return new FileEntry(entryHeader, entryData);
             })
             .ToArray();
-    }
-
-    private const int SecondPassThreshold = 102400;
-
-    private static void DecryptGroup(byte[] buffer, uint key1, uint key2)
-    {
-        using var mem = new MemoryStream(buffer);
-        using var floatageFish = new FloatageFishDecryptionStream(mem, key1, 16);
-        using var blowfish1 = new BlowfishDecryptionStream(floatageFish, BitConverter.GetBytes(key1));
-        if (buffer.Length <= SecondPassThreshold)
-        {
-            using var blowfish2 = new BlowfishDecryptionStream(blowfish1, BitConverter.GetBytes(key2));
-            var nRead = blowfish2.Read(buffer, 0, buffer.Length);
-            Debug.Assert(nRead == buffer.Length);
-        }
-        else
-        {
-            var nRead = blowfish1.Read(buffer, 0, buffer.Length);
-            Debug.Assert(nRead == buffer.Length);
-        }
     }
 
     private static void GetBlowfishKeys(BlowfishKeys blowfishKeys, byte[] magic, int compressedSize)
