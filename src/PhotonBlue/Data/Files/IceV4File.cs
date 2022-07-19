@@ -114,6 +114,9 @@ public class IceV4File : IceFile
     {
         using var mem = new MemoryStream(data);
         var decryptStream = PrepareGroupDecryption(mem, keys);
+        // We use the input buffer as a scratch buffer for reading in the
+        // decrypted data. This doesn't cause any decryption issues since
+        // we're not reading the data more than once.
         DecompressGroup(group, decryptStream, data, result);
     }
 
