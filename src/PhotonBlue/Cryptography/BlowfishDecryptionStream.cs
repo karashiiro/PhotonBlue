@@ -15,17 +15,23 @@ public class BlowfishDecryptionStream : Stream
         set => _stream.Position = value;
     }
 
+    private int HoldCount => _holdEnd - _holdStart;
+
     // An internal buffer for holding decrypted data that the consumer
     // doesn't want to read, yet. Because Blowfish decrypts blocks 8 bytes
     // at a time, this will never be larger than 8 bytes.
-    private readonly Queue<byte> _hold;
+    private readonly byte[] _hold;
+    private int _holdStart;
+    private int _holdEnd;
 
     private readonly Blowfish _blowfish;
     private readonly Stream _stream;
 
     public BlowfishDecryptionStream(Stream data, IEnumerable<byte> key)
     {
-        _hold = new Queue<byte>(8);
+        _hold = new byte[8];
+        _holdStart = 0;
+        _holdEnd = 0;
         _blowfish = new Blowfish(key);
         _stream = data;
     }
@@ -46,9 +52,9 @@ public class BlowfishDecryptionStream : Stream
 
         // Load any held decrypted bytes from previous operations into the output buffer.
         var nLeft = count;
-        if (_hold.Count != 0)
+        if (HoldCount != 0)
         {
-            var nCopied = Math.Min(_hold.Count, count);
+            var nCopied = Math.Min(HoldCount, count);
             LoadHeldBytes(buffer, offset, nCopied);
             outIndex += nCopied;
             nLeft -= nCopied;
@@ -60,7 +66,7 @@ public class BlowfishDecryptionStream : Stream
         var nToRead = Convert.ToInt32(Math.Min(nLeft + nLeft % 8, _stream.Length - _stream.Position));
         var readBuf = new byte[nToRead]; // Not sure how to avoid this allocation
         var nRead = _stream.Read(readBuf, 0, nToRead);
-        
+
         // No data remaining; return early.
         if (nRead == 0)
         {
@@ -97,32 +103,33 @@ public class BlowfishDecryptionStream : Stream
         return Math.Min(outIndex - offset, count);
     }
 
-    private void LoadHeldBytes(IList<byte> buffer, int offset, int count)
+    private void LoadHeldBytes(byte[] buffer, int offset, int count)
     {
-        Debug.Assert(_hold.Count - count >= 0,
-            "Hold buffer does not contain enough elements to support this operation.");
-        for (var i = offset; i < offset + count; i++)
-        {
-            buffer[i] = _hold.Dequeue();
-        }
+        Debug.Assert(count > 0, "Tried to read negative amount of bytes from the hold buffer.");
+        Debug.Assert(HoldCount - count >= 0, "Hold buffer does not contain enough elements to support this operation.");
+        Array.Copy(_hold, _holdStart, buffer, offset, count);
+        _holdStart += count;
     }
 
-    private void HoldBytes(IReadOnlyList<byte> data, int offset, int count)
+    private void HoldBytes(byte[] data, int offset, int count)
     {
-        Debug.Assert(_hold.Count + count <= 8,
-            "Hold buffer would be larger than 8 bytes after this operation.");
-        for (var i = offset; i < offset + count; i++)
-        {
-            _hold.Enqueue(data[i]);
-        }
+        Debug.Assert(HoldCount == 0, "Hold buffer still contains unread data.");
+        Debug.Assert(count > 0, "Tried to store negative amount of bytes in the hold buffer.");
+        Debug.Assert(count <= 8, "Hold buffer would be larger than 8 bytes after this operation.");
+
+        // Clobber any data currently in the hold buffer since this will never be called
+        // while the hold buffer still has data.
+        Array.Copy(data, offset, _hold, 0, count);
+        _holdStart = 0;
+        _holdEnd = count;
     }
 
     public override int ReadByte()
     {
         // Read data from the internal buffer.
-        if (_hold.Count != 0)
+        if (HoldCount != 0)
         {
-            return _hold.Dequeue();
+            return _hold[_holdStart++];
         }
 
         // If the underlying data is not a multiple of 8 bytes long and in the
