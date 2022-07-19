@@ -79,7 +79,7 @@ public class IceV4File : IceFile
             group2DataRaw = Reader.ReadBytes(Convert.ToInt32(Group2.GetStoredSize()));
         }
 
-        // Decompress the archive contents
+        // Extract the archive contents
         var group1Data = HandleGroupExtraction(Group1, keys.GroupDataKeys[0], group1DataRaw);
         var group2Data = HandleGroupExtraction(Group2, keys.GroupDataKeys[1], group2DataRaw);
 
