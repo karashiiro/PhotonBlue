@@ -172,7 +172,7 @@ public class IceFileTests
 
     private static void AssertDataEquivalent(IReadOnlyCollection<byte> expected, IReadOnlyCollection<byte> actual)
     {
-        if (expected.Count < actual.Count)
+        if (expected.Count <= actual.Count)
         {
             Assert.Equal(expected.AsEnumerable(), actual.AsEnumerable());
         }

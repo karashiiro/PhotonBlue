@@ -5,14 +5,14 @@ namespace PhotonBlue.Cryptography;
 public class BlowfishDecryptionStream : Stream
 {
     public override bool CanRead => _stream.CanRead;
-    public override bool CanSeek => false;
+    public override bool CanSeek => true;
     public override bool CanWrite => false;
     public override long Length => _stream.Length;
 
     public override long Position
     {
-        get => _stream.Position;
-        set => _stream.Position = value;
+        get => _bytesProduced;
+        set => throw new NotSupportedException();
     }
 
     private int HoldCount => _holdEnd - _holdStart;
@@ -20,9 +20,14 @@ public class BlowfishDecryptionStream : Stream
     // An internal buffer for holding decrypted data that the consumer
     // doesn't want to read, yet. Because Blowfish decrypts blocks 8 bytes
     // at a time, this will never be larger than 8 bytes.
-    private readonly byte[] _hold;
+    private byte[] _hold;
     private int _holdStart;
     private int _holdEnd;
+
+    // Tracks the number of bytes actually produced, as opposed to the bytes
+    // read from the underlying stream. This is important for maintaining a
+    // length property that is unrelated to the hold buffer. 
+    private int _bytesProduced;
 
     private readonly Blowfish _blowfish;
     private readonly Stream _stream;
@@ -32,6 +37,9 @@ public class BlowfishDecryptionStream : Stream
         _hold = new byte[8];
         _holdStart = 0;
         _holdEnd = 0;
+        
+        _bytesProduced = 0;
+        
         _blowfish = new Blowfish(key);
         _stream = data;
     }
@@ -60,17 +68,27 @@ public class BlowfishDecryptionStream : Stream
             nLeft -= nCopied;
         }
 
+        if (nLeft == 0)
+        {
+            // All requested data was retrieved from the hold buffer.
+            var produced = outIndex - offset;
+            _bytesProduced += produced;
+            return produced;
+        }
+
         // Create a padded buffer that can hold a multiple of 8 bytes for decryption, and
         // fill it with data. If this would read more data than the amount of remaining data,
         // then just read all of the remaining data.
-        var nToRead = Convert.ToInt32(Math.Min(nLeft + nLeft % 8, _stream.Length - _stream.Position));
+        var nToRead = Convert.ToInt32(Math.Min(nLeft + (8 - nLeft % 8), _stream.Length - _stream.Position));
         var readBuf = new byte[nToRead]; // Not sure how to avoid this allocation
         var nRead = _stream.Read(readBuf, 0, nToRead);
 
         // No data remaining; return early.
         if (nRead == 0)
         {
-            return outIndex - offset;
+            var produced = outIndex - offset;
+            _bytesProduced += produced;
+            return produced;
         }
 
         if (_stream.Length % 8 == 0 || _stream.Length - _stream.Position >= 8)
@@ -100,7 +118,9 @@ public class BlowfishDecryptionStream : Stream
         // We lie about the returned number of bytes and only inform the consumer that
         // we have read up to the requested amount of data. In reality, we may have
         // read more than that and stored it in our internal buffer.
-        return Math.Min(outIndex - offset, count);
+        var producedCount = Math.Min(outIndex - offset, count);
+        _bytesProduced += producedCount;
+        return producedCount;
     }
 
     private void LoadHeldBytes(byte[] buffer, int offset, int count)
@@ -126,6 +146,8 @@ public class BlowfishDecryptionStream : Stream
 
     public override int ReadByte()
     {
+        _bytesProduced++;
+        
         // Read data from the internal buffer.
         if (HoldCount != 0)
         {
@@ -141,28 +163,43 @@ public class BlowfishDecryptionStream : Stream
         }
 
         // Otherwise, read data from the stream, decrypt it normally, and hold
-        // anything we're not returning.
-        var buf = new byte[8];
-        var nRead = _stream.Read(buf, 0, buf.Length);
+        // anything we're not returning. We can read data directly into the hold
+        // buffer, since we know that it has been completely consumed. We also
+        // know that this is not the end of the file, so we don't need to handle
+        // the buffer being only partially filled.
+        var nRead = _stream.Read(_hold, 0, _hold.Length);
+        Debug.Assert(nRead == _hold.Length, "Unexpected end of stream.");
 
-        _blowfish.DecryptStandard(ref buf);
-        HoldBytes(buf, 1, nRead - 1);
+        _holdStart = 0;
+        _holdEnd = nRead;
+
+        _blowfish.DecryptStandard(ref _hold);
 
         // Return the next decrypted byte.
-        return buf[0];
+        return _hold[_holdStart++];
     }
 
     public override long Seek(long offset, SeekOrigin origin)
     {
-        // This can't meaningfully be implemented. Seeking to a point in the
-        // file requires decrypting everything before it so that the Blowfish
-        // tables are in the correct state to continue reading data.
-        throw new NotSupportedException();
+        // This is a poor implementation, but it correctly manages the hold buffer's state.
+        var absoluteOffset = origin switch
+        {
+            SeekOrigin.Begin => offset,
+            SeekOrigin.Current => offset + _stream.Position,
+            SeekOrigin.End => _stream.Length - offset,
+            _ => throw new ArgumentOutOfRangeException(nameof(origin), origin, null),
+        };
+
+        Debug.Assert(absoluteOffset >= _stream.Position, "This stream does not support seeking to consumed data.");
+
+        var count = absoluteOffset - _stream.Position;
+        var buf = new byte[count];
+        return _stream.Position + Read(buf, 0, Convert.ToInt32(count));
     }
 
     public override void SetLength(long value)
     {
-        _stream.SetLength(value);
+        throw new NotSupportedException();
     }
 
     public override void Write(byte[] buffer, int offset, int count)

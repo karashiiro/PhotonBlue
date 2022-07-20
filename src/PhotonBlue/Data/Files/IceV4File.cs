@@ -52,8 +52,6 @@ public class IceV4File : IceFile
 
         // Decrypt the file headers, if necessary
         var keys = new BlowfishKeys();
-        byte[] group1DataRaw;
-        byte[] group2DataRaw;
         if (Header.Flags.HasFlag(IceFileFlags.Encrypted))
         {
             GetBlowfishKeys(keys, Header.BlowfishMagic, Convert.ToInt32(Header.FileSize));
@@ -66,41 +64,36 @@ public class IceV4File : IceFile
 
             Group1 = GroupHeader.Read(subReader);
             Group2 = GroupHeader.Read(subReader);
-
-            group1DataRaw = Reader.ReadBytes(Convert.ToInt32(Group1.GetStoredSize()));
-            group2DataRaw = Reader.ReadBytes(Convert.ToInt32(Group2.GetStoredSize()));
         }
         else
         {
             Group1 = GroupHeader.Read(Reader);
             Group2 = GroupHeader.Read(Reader);
             Reader.Seek(0x10, SeekOrigin.Current);
-            group1DataRaw = Reader.ReadBytes(Convert.ToInt32(Group1.GetStoredSize()));
-            group2DataRaw = Reader.ReadBytes(Convert.ToInt32(Group2.GetStoredSize()));
         }
+        
+        // Set up some partitions that keep reads in the different sections of the archive
+        // isolated from each other.
+        var partitions = new long[] { 336, Group1.GetStoredSize(), Group2.GetStoredSize() };
+        var partitionedStream = new PartitionedStream(Reader.BaseStream, partitions);
+        
+        // Skip the headers, which have already been read
+        partitionedStream.NextPartition();
 
         // Extract the archive contents
-        var group1Data = HandleGroupExtraction(Group1, keys.GroupDataKeys[0], group1DataRaw);
-        var group2Data = HandleGroupExtraction(Group2, keys.GroupDataKeys[1], group2DataRaw);
+        var group1Stream = HandleGroupExtraction(Group1, keys.GroupDataKeys[0], partitionedStream);
+        partitionedStream.NextPartition();
+        var group2Stream = HandleGroupExtraction(Group2, keys.GroupDataKeys[1], partitionedStream);
 
-        Group1Entries = UnpackGroup(Group1, group1Data);
-        Group2Entries = UnpackGroup(Group2, group2Data);
+        Group1Entries = UnpackGroup(Group1, group1Stream);
+        Group2Entries = UnpackGroup(Group2, group2Stream);
     }
 
-    private byte[] HandleGroupExtraction(GroupHeader group, IReadOnlyList<uint> keys, byte[] data)
+    private Stream HandleGroupExtraction(GroupHeader group, IReadOnlyList<uint> keys, Stream data)
     {
-        if (data.Length == 0)
-        {
-            return data;
-        }
-
-        // We only need to allocate a new array if we need to decompress the data; otherwise
-        // we can decode it in-place.
-        var result = group.CompressedSize > 0 ? new byte[group.RawSize] : data;
-        DecodeGroup(group, keys, data, result);
-        return result;
+        return data.Length == 0 ? data : DecodeGroup(group, keys, data);
     }
-    
+
     private const int SecondPassThreshold = 102400;
 
     /// <summary>
@@ -110,14 +103,13 @@ public class IceV4File : IceFile
     /// <param name="keys">The group's decryption keys, if the file is encrypted.</param>
     /// <param name="data">The raw group data.</param>
     /// <param name="result">The buffer that should contain the result data.</param>
-    private void DecodeGroup(GroupHeader group, IReadOnlyList<uint> keys, byte[] data, byte[] result)
+    private Stream DecodeGroup(GroupHeader group, IReadOnlyList<uint> keys, Stream data)
     {
-        using var mem = new MemoryStream(data);
-        var decryptStream = PrepareGroupDecryption(mem, keys);
+        var decryptStream = PrepareGroupDecryption(data, keys);
         // We use the input buffer as a scratch buffer for reading in the
         // decrypted data. This doesn't cause any decryption issues since
         // we're not reading the data more than once.
-        DecompressGroup(group, decryptStream, data, result);
+        return DecompressGroup(group, decryptStream);
     }
 
     /// <summary>
@@ -151,44 +143,41 @@ public class IceV4File : IceFile
     /// <param name="inputStream">The input stream of decrypted group data.</param>
     /// <param name="scratch">An array of a size equal to the input data, used for reading in temporary data.</param>
     /// <param name="result">The buffer that should contain the result data.</param>
-    private void DecompressGroup(GroupHeader group, Stream inputStream, byte[] scratch, byte[] result)
+    private Stream DecompressGroup(GroupHeader group, Stream inputStream)
     {
         switch (group.CompressedSize)
         {
             case > 0 when Header.Flags.HasFlag(IceFileFlags.Kraken):
             {
                 // Kraken decompression
+                var scratch = new byte[group.GetStoredSize()];
                 var nRead1 = inputStream.Read(scratch, 0, scratch.Length);
                 Debug.Assert(nRead1 == scratch.Length, "Decryption gave unexpected decrypted data size.");
-            
+
+                var result = new byte[group.RawSize];
                 var nRead2 = Kraken.Decompress(scratch, group.CompressedSize, result, group.RawSize);
                 Debug.Assert(nRead2 != -1, "Kraken decompression failed due to an error.");
                 Debug.Assert(nRead2 == result.Length, "Kraken decompression gave unexpected uncompressed size.");
-                break;
+                return new MemoryStream(result);
             }
             case > 0:
             {
                 // PRS decompression
                 var prsInput = new IcePrsInputStream(inputStream);
                 var decompressionStream = new PrsStream(prsInput);
-                var nRead = decompressionStream.Read(result, 0, result.Length);
-                Debug.Assert(nRead == result.Length, "PRS decompression gave unexpected uncompressed size.");
-                break;
+                return decompressionStream;
             }
             default:
             {
                 // Uncompressed data
-                var nRead = inputStream.Read(result, 0, result.Length);
-                Debug.Assert(nRead == result.Length, "Decryption gave unexpected decrypted data size.");
-                break;
+                return inputStream;
             }
         }
     }
-
-    private static FileEntry[] UnpackGroup(GroupHeader header, byte[] data)
+    
+    private static FileEntry[] UnpackGroup(GroupHeader header, Stream data)
     {
-        using var buf = new MemoryStream(data);
-        using var br = new BinaryReader(buf);
+        using var br = new BinaryReader(data);
         return Enumerable.Repeat(br, Convert.ToInt32(header.FileCount))
             .Select(reader =>
             {
