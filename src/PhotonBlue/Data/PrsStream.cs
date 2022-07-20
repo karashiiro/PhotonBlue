@@ -206,7 +206,7 @@ public class PrsStream : Stream
         {
             SeekOrigin.Begin => offset,
             SeekOrigin.Current => offset + _stream.Position,
-            SeekOrigin.End => _stream.Length - offset,
+            SeekOrigin.End => offset + _stream.Length,
             _ => throw new ArgumentOutOfRangeException(nameof(origin), origin, null),
         };
 

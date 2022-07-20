@@ -1,4 +1,6 @@
-﻿namespace PhotonBlue;
+﻿using System.Diagnostics;
+
+namespace PhotonBlue;
 
 public class PartitionedStream : Stream
 {
@@ -8,9 +10,8 @@ public class PartitionedStream : Stream
     public override long Length => PartitionLength;
     public override long Position { get => PartitionPosition; set => _stream.Position = value + PartitionStart; }
 
-    private long BytesAfterPartition => _partitions.Skip(_currentPartition + 1).Sum();
-    private long PartitionLength => _partitions[_currentPartition];
     private long PartitionStart => _partitions.Take(_currentPartition).Sum();
+    private long PartitionLength => _partitions[_currentPartition];
     private long PartitionPosition => _stream.Position - PartitionStart;
 
     private readonly Stream _stream;
@@ -32,6 +33,10 @@ public class PartitionedStream : Stream
         }
 
         _currentPartition++;
+        
+        // Seek to the start of the partition, in case we aren't there yet
+        _stream.Seek(PartitionStart - _stream.Position, SeekOrigin.Current);
+        Debug.Assert(_stream.Position == PartitionStart);
     }
     
     public override void Flush()
@@ -52,15 +57,16 @@ public class PartitionedStream : Stream
 
     public override long Seek(long offset, SeekOrigin origin)
     {
-        var actualOffset = origin switch
+        var absoluteOffset = origin switch
         {
             SeekOrigin.Begin => offset + PartitionStart,
-            SeekOrigin.Current => offset,
-            SeekOrigin.End => offset + BytesAfterPartition,
+            SeekOrigin.Current => offset + _stream.Position,
+            SeekOrigin.End => offset + PartitionLength + PartitionStart,
             _ => throw new ArgumentOutOfRangeException(nameof(origin), origin, null),
         };
 
-        return _stream.Seek(actualOffset, origin);
+        var constrainedOffset = Math.Max(0, Math.Min(PartitionStart + PartitionLength, absoluteOffset));
+        return _stream.Seek(constrainedOffset, origin) - PartitionStart;
     }
 
     public override void SetLength(long value)

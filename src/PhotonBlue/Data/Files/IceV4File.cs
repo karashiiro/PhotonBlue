@@ -71,23 +71,23 @@ public class IceV4File : IceFile
             Group2 = GroupHeader.Read(Reader);
             Reader.Seek(0x10, SeekOrigin.Current);
         }
-        
+
         // Set up some partitions that keep reads in the different sections of the archive
         // isolated from each other.
         var partitions = new long[] { 336, Group1.GetStoredSize(), Group2.GetStoredSize() };
         var partitionedStream = new PartitionedStream(Reader.BaseStream, partitions);
-        
+
         // Skip the headers, which have already been read
-        Debug.Assert(Reader.BaseStream.Position == 336, "Stream is at an unexpected position.");
+        Debug.Assert(partitionedStream.Position == 336, "Stream is at an unexpected position.");
         partitionedStream.NextPartition();
 
         // Extract the archive contents
         var group1Stream = HandleGroupExtraction(Group1, keys.GroupDataKeys[0], partitionedStream);
         Group1Entries = UnpackGroup(Group1, group1Stream);
-        
+
         // Move to the group 2 partition
         partitionedStream.NextPartition();
-        
+
         var group2Stream = HandleGroupExtraction(Group2, keys.GroupDataKeys[1], partitionedStream);
         Group2Entries = UnpackGroup(Group2, group2Stream);
     }
@@ -177,7 +177,7 @@ public class IceV4File : IceFile
             }
         }
     }
-    
+
     private static FileEntry[] UnpackGroup(GroupHeader header, Stream data)
     {
         using var br = new BinaryReader(data);

@@ -165,6 +165,28 @@ public class IceFileTests
     }
     
     [Fact]
+    public void IceFile_Parses_V4_Encrypted_PRS_Data_5()
+    {
+        using var data = File.OpenRead(@"..\..\..\..\..\testdata\00150669267df8e4fdfd58cda0c1b9a0");
+        var ice = new IceV4File(data);
+        ice.LoadFile();
+
+        Assert.Equal(1, ice.Group1Entries.Count);
+        Assert.All(ice.Group1Entries, AssertEntryValid);
+        
+        Assert.Equal(37, ice.Group2Entries.Count);
+        Assert.All(ice.Group2Entries, AssertEntryValid);
+        
+        var expected1 = File.ReadAllBytes(@"..\..\..\..\..\testdata\weapon_specific.ini.lua");
+        var actual1 = ice.Group1Entries.First(entry => entry.Header.FileName == "weapon_specific.ini.lua");
+        AssertDataEquivalent(expected1, actual1.Data);
+        
+        var expected2 = File.ReadAllBytes(@"..\..\..\..\..\testdata\05_item_rifle_10077.acb");
+        var actual2 = ice.Group2Entries.First(entry => entry.Header.FileName == "05_item_rifle_10077.acb");
+        AssertDataEquivalent(expected2, actual2.Data);
+    }
+    
+    [Fact]
     public void IceFile_Parses_V4_Encrypted_Uncompressed_Data()
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\0006b03a4c2763ffcd7d4547f71600dd");
