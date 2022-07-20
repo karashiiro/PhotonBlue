@@ -78,14 +78,17 @@ public class IceV4File : IceFile
         var partitionedStream = new PartitionedStream(Reader.BaseStream, partitions);
         
         // Skip the headers, which have already been read
+        Debug.Assert(Reader.BaseStream.Position == 336, "Stream is at an unexpected position.");
         partitionedStream.NextPartition();
 
         // Extract the archive contents
         var group1Stream = HandleGroupExtraction(Group1, keys.GroupDataKeys[0], partitionedStream);
-        partitionedStream.NextPartition();
-        var group2Stream = HandleGroupExtraction(Group2, keys.GroupDataKeys[1], partitionedStream);
-
         Group1Entries = UnpackGroup(Group1, group1Stream);
+        
+        // Move to the group 2 partition
+        partitionedStream.NextPartition();
+        
+        var group2Stream = HandleGroupExtraction(Group2, keys.GroupDataKeys[1], partitionedStream);
         Group2Entries = UnpackGroup(Group2, group2Stream);
     }
 
