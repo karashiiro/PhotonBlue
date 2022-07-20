@@ -8,9 +8,15 @@ public class PartitionedStream : Stream
     public override bool CanSeek => false;
     public override bool CanWrite => false;
     public override long Length => PartitionLength;
-    public override long Position { get => PartitionPosition; set => _stream.Position = value + PartitionStart; }
 
-    private long PartitionStart => _partitions.Take(_currentPartition).Sum();
+    public override long Position
+    {
+        get => PartitionPosition;
+        set => _stream.Position = Math.Max(0, Math.Min(PartitionStart + PartitionLength, value + PartitionStart));
+    }
+
+    private long PartitionStart { get; set; }
+
     private long PartitionLength => _partitions[_currentPartition];
     private long PartitionPosition => _stream.Position - PartitionStart;
 
@@ -23,6 +29,8 @@ public class PartitionedStream : Stream
         _stream = data;
         _partitions = partitions;
         _currentPartition = 0;
+        
+        PartitionStart = 0;
     }
 
     public void NextPartition()
@@ -33,6 +41,7 @@ public class PartitionedStream : Stream
         }
 
         _currentPartition++;
+        PartitionStart = _partitions.Take(_currentPartition).Sum();
         
         // Seek to the start of the partition, in case we aren't there yet
         _stream.Seek(PartitionStart - _stream.Position, SeekOrigin.Current);
