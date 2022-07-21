@@ -230,8 +230,8 @@ public class Blowfish
         for (var i = 0; i < paddedLength; i += 8)
         {
             var (l, r) = Encrypt(BitConverter.ToUInt32(buffer, i), BitConverter.ToUInt32(buffer, i + 4));
-            CopyUInt32IntoArray(buffer, l, i);
-            CopyUInt32IntoArray(buffer, r, i + 4);
+            Unsafe.As<byte, uint>(ref buffer[i]) = l;
+            Unsafe.As<byte, uint>(ref buffer[i + 4]) = r;
         }
 
         return buffer;
@@ -242,8 +242,8 @@ public class Blowfish
         for (var i = 0; i < data.Length; i += 8)
         {
             var (l, r) = Decrypt(BitConverter.ToUInt32(data, i), BitConverter.ToUInt32(data, i + 4));
-            CopyUInt32IntoArray(data, l, i);
-            CopyUInt32IntoArray(data, r, i + 4);
+            Unsafe.As<byte, uint>(ref data[i]) = l;
+            Unsafe.As<byte, uint>(ref data[i + 4]) = r;
         }
     }
 
@@ -254,17 +254,9 @@ public class Blowfish
         for (var i = 0; i + 7 < data.Length; i += 8)
         {
             var (l, r) = Decrypt(BitConverter.ToUInt32(data, i), BitConverter.ToUInt32(data, i + 4));
-            CopyUInt32IntoArray(data, l, i);
-            CopyUInt32IntoArray(data, r, i + 4);
+            Unsafe.As<byte, uint>(ref data[i]) = l;
+            Unsafe.As<byte, uint>(ref data[i + 4]) = r;
         }
-    }
-
-    private static void CopyUInt32IntoArray(IList<byte> dest, uint val, int offset)
-    {
-        dest[offset] = (byte)(val & 0xFF);
-        dest[offset + 1] = (byte)((val >> 8) & 0xFF);
-        dest[offset + 2] = (byte)((val >> 16) & 0xFF);
-        dest[offset + 3] = (byte)((val >> 24) & 0xFF);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

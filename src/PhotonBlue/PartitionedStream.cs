@@ -7,18 +7,17 @@ public class PartitionedStream : Stream
     public override bool CanRead => _stream.CanRead;
     public override bool CanSeek => false;
     public override bool CanWrite => false;
-    public override long Length => PartitionLength;
+    public override long Length => _partitionLength;
 
     public override long Position
     {
-        get => PartitionPosition;
-        set => _stream.Position = Math.Max(0, Math.Min(PartitionStart + PartitionLength, value + PartitionStart));
+        get => _partitionPosition;
+        set => _stream.Position = Math.Max(0, Math.Min(_partitionStart + _partitionLength, value + _partitionStart));
     }
 
-    private long PartitionStart { get; set; }
-
-    private long PartitionLength => _partitions[_currentPartition];
-    private long PartitionPosition => _stream.Position - PartitionStart;
+    private long _partitionStart;
+    private long _partitionLength;
+    private long _partitionPosition;
 
     private readonly Stream _stream;
     private readonly IReadOnlyList<long> _partitions;
@@ -30,7 +29,9 @@ public class PartitionedStream : Stream
         _partitions = partitions;
         _currentPartition = 0;
         
-        PartitionStart = 0;
+        _partitionStart = 0;
+        _partitionLength = _partitions[_currentPartition];
+        _partitionPosition = Math.Min(data.Position, _partitionLength);
     }
 
     public void NextPartition()
@@ -41,11 +42,13 @@ public class PartitionedStream : Stream
         }
 
         _currentPartition++;
-        PartitionStart = _partitions.Take(_currentPartition).Sum();
+        _partitionStart = _partitions.Take(_currentPartition).Sum();
+        _partitionLength = _partitions[_currentPartition];
+        _partitionPosition = 0;
         
         // Seek to the start of the partition, in case we aren't there yet
-        _stream.Seek(PartitionStart - _stream.Position, SeekOrigin.Current);
-        Debug.Assert(_stream.Position == PartitionStart);
+        _stream.Seek(_partitionStart - _stream.Position, SeekOrigin.Current);
+        Debug.Assert(_stream.Position == _partitionStart);
     }
     
     public override void Flush()
@@ -55,12 +58,15 @@ public class PartitionedStream : Stream
 
     public override int Read(byte[] buffer, int offset, int count)
     {
-        var toRead = Math.Min(count, PartitionLength - PartitionPosition);
-        return _stream.Read(buffer, offset, Convert.ToInt32(toRead));
+        var toRead = Math.Min(count, _partitionLength - _partitionPosition);
+        var nRead = _stream.Read(buffer, offset, Convert.ToInt32(toRead));
+        _partitionPosition += nRead;
+        return nRead;
     }
 
     public override int ReadByte()
     {
+        _partitionPosition++;
         return _stream.ReadByte();
     }
 
@@ -68,14 +74,15 @@ public class PartitionedStream : Stream
     {
         var absoluteOffset = origin switch
         {
-            SeekOrigin.Begin => offset + PartitionStart,
+            SeekOrigin.Begin => offset + _partitionStart,
             SeekOrigin.Current => offset + _stream.Position,
-            SeekOrigin.End => offset + PartitionLength + PartitionStart,
+            SeekOrigin.End => offset + _partitionLength + _partitionStart,
             _ => throw new ArgumentOutOfRangeException(nameof(origin), origin, null),
         };
 
-        var constrainedOffset = Math.Max(0, Math.Min(PartitionStart + PartitionLength, absoluteOffset));
-        return _stream.Seek(constrainedOffset, origin) - PartitionStart;
+        var constrainedOffset = Math.Max(0, Math.Min(_partitionStart + _partitionLength, absoluteOffset));
+        _partitionPosition = _stream.Seek(constrainedOffset, origin) - _partitionStart;
+        return _partitionPosition;
     }
 
     public override void SetLength(long value)
