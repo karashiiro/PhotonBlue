@@ -7,7 +7,7 @@ namespace PhotonBlue.Tests;
 public class NiflFileTests
 {
     [Fact]
-    public void NiflFile_Parses_Headers()
+    public void Should_Parse_Headers()
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\tut_006353.text");
         var nifl = new NiflFile(data);
@@ -18,7 +18,7 @@ public class NiflFileTests
     }
     
     [Fact]
-    public void NiflFile_Parses_Text()
+    public void Should_Parse_Text()
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\tut_006353.text");
         var nifl = new NiflFile(data);

@@ -6,7 +6,7 @@ namespace PhotonBlue.Tests;
 public class GameFileIndexerTests
 {
     [Fact]
-    public void GameFileIndexer_Lists_Files()
+    public void Should_List_Files()
     {
         var index = new GameFileIndexer();
         index.LoadFromDataPath(@"D:\PHANTASYSTARONLINE2_JP\pso2_bin\data");

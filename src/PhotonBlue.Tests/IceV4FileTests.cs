@@ -6,10 +6,10 @@ using Xunit;
 
 namespace PhotonBlue.Tests;
 
-public class IceFileTests
+public class IceV4FileTests
 {
     [Fact]
-    public void IceFile_Parses_V4_Kraken_Data_1()
+    public void Should_Parse_Kraken_Data_1()
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\b568a6a6c428485a57b67a1da466de");
         var ice = new IceV4File(data);
@@ -39,7 +39,7 @@ public class IceFileTests
     }
     
     [Fact]
-    public void IceFile_Parses_V4_Kraken_Data_2()
+    public void Should_Parse_Kraken_Data_2()
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\0000064b91444b04df5d95f6a0bc55be");
         var ice = new IceV4File(data);
@@ -71,7 +71,7 @@ public class IceFileTests
     }
     
     [Fact]
-    public void IceFile_Parses_V4_Encrypted_Kraken_Data()
+    public void Should_Parse_Encrypted_Kraken_Data()
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\74cdd2b68f9614e70dd0b67a80e4d723");
         var ice = new IceV4File(data);
@@ -91,7 +91,7 @@ public class IceFileTests
     }
     
     [Fact]
-    public void IceFile_Parses_V4_PRS_Data()
+    public void Should_Parse_PRS_Data()
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\cb1001342c1f786545795140c345f1");
         var ice = new IceV4File(data);
@@ -103,7 +103,7 @@ public class IceFileTests
     }
     
     [Fact]
-    public void IceFile_Parses_V4_Encrypted_PRS_Data_1()
+    public void Should_Parse_Encrypted_PRS_Data_1()
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\000fbf4e4b152c9970398f4c82012b95");
         var ice = new IceV4File(data);
@@ -119,7 +119,7 @@ public class IceFileTests
     }
     
     [Fact]
-    public void IceFile_Parses_V4_Encrypted_PRS_Data_2()
+    public void Should_Parse_Encrypted_PRS_Data_2()
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\0000ad8daf393f31da0fd7e26829c819");
         var ice = new IceV4File(data);
@@ -135,7 +135,7 @@ public class IceFileTests
     }
     
     [Fact]
-    public void IceFile_Parses_V4_Encrypted_PRS_Data_3()
+    public void Should_Parse_Encrypted_PRS_Data_3()
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\0002c97e93075ec680d89801fa640912");
         var ice = new IceV4File(data);
@@ -151,7 +151,7 @@ public class IceFileTests
     }
     
     [Fact]
-    public void IceFile_Parses_V4_Encrypted_PRS_Data_3_HeadersOnly()
+    public void Should_Parse_Encrypted_PRS_Data_3_HeadersOnly()
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\0002c97e93075ec680d89801fa640912");
         var ice = new IceV4File(data);
@@ -162,7 +162,7 @@ public class IceFileTests
     }
     
     [Fact]
-    public void IceFile_Parses_V4_Encrypted_PRS_Data_4()
+    public void Should_Parse_Encrypted_PRS_Data_4()
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\000a686a27ade4d971ac5e27a664a5a3");
         var ice = new IceV4File(data);
@@ -176,7 +176,7 @@ public class IceFileTests
     }
     
     [Fact]
-    public void IceFile_Parses_V4_Encrypted_PRS_Data_5()
+    public void Should_Parse_Encrypted_PRS_Data_5()
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\00150669267df8e4fdfd58cda0c1b9a0");
         var ice = new IceV4File(data);
@@ -198,7 +198,7 @@ public class IceFileTests
     }
     
     [Fact]
-    public void IceFile_Parses_V4_Encrypted_PRS_Data_5_HeadersOnly()
+    public void Should_Parse_Encrypted_PRS_Data_5_HeadersOnly()
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\00150669267df8e4fdfd58cda0c1b9a0");
         var ice = new IceV4File(data);
@@ -209,7 +209,7 @@ public class IceFileTests
     }
     
     [Fact]
-    public void IceFile_Parses_V4_Encrypted_Uncompressed_Data()
+    public void Should_Parse_Encrypted_Uncompressed_Data()
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\0006b03a4c2763ffcd7d4547f71600dd");
         var ice = new IceV4File(data);
