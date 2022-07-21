@@ -37,13 +37,51 @@ public class IceV4File : IceFile
     public IList<FileEntry> Group1Entries { get; private set; }
     public IList<FileEntry> Group2Entries { get; private set; }
 
+    private BlowfishKeys _keys;
+
     public IceV4File(Stream data) : base(data)
     {
+        _keys = new BlowfishKeys();
+        
         Group1Entries = Array.Empty<FileEntry>();
         Group2Entries = Array.Empty<FileEntry>();
     }
 
     public override void LoadFile()
+    {
+        LoadHeaders();
+
+        // Set up some partitions that keep reads in the different sections of the archive
+        // isolated from each other.
+        var partitions = new long[] { 336, Group1.GetStoredSize(), Group2.GetStoredSize() };
+        var partitionedStream = new PartitionedStream(Reader.BaseStream, partitions);
+
+        // Skip the headers, which have already been read
+        Debug.Assert(partitionedStream.Position == 336, "Stream is at an unexpected position.");
+        partitionedStream.NextPartition();
+
+        // Extract the archive contents
+        LoadFileEntries(partitionedStream);
+    }
+
+    public void LoadFileHeadersOnly()
+    {
+        LoadHeaders();
+
+        // Set up some partitions that keep reads in the different sections of the archive
+        // isolated from each other.
+        var partitions = new long[] { 336, Group1.GetStoredSize(), Group2.GetStoredSize() };
+        var partitionedStream = new PartitionedStream(Reader.BaseStream, partitions);
+
+        // Skip the headers, which have already been read
+        Debug.Assert(partitionedStream.Position == 336, "Stream is at an unexpected position.");
+        partitionedStream.NextPartition();
+
+        // Extract the archive entry headers
+        LoadFileEntriesHeadersOnly(partitionedStream);
+    }
+
+    private void LoadHeaders()
     {
         // Read the ICE archive header
         base.LoadFile();
@@ -51,12 +89,12 @@ public class IceV4File : IceFile
         Debug.Assert(Header.Version == 4, "Incorrect ICE version detected!");
 
         // Decrypt the file headers, if necessary
-        var keys = new BlowfishKeys();
+        _keys = new BlowfishKeys();
         if (Header.Flags.HasFlag(IceFileFlags.Encrypted))
         {
-            GetBlowfishKeys(keys, Header.BlowfishMagic, Convert.ToInt32(Header.FileSize));
+            GetBlowfishKeys(_keys, Header.BlowfishMagic, Convert.ToInt32(Header.FileSize));
             var headersRaw = Reader.ReadBytes(0x30);
-            var blowfish = new Blowfish(BitConverter.GetBytes(keys.GroupHeadersKey));
+            var blowfish = new Blowfish(BitConverter.GetBytes(_keys.GroupHeadersKey));
             blowfish.Decrypt(ref headersRaw);
 
             using var headersMem = new MemoryStream(headersRaw);
@@ -71,24 +109,33 @@ public class IceV4File : IceFile
             Group2 = GroupHeader.Read(Reader);
             Reader.Seek(0x10, SeekOrigin.Current);
         }
+    }
+    
+    private void LoadFileEntriesHeadersOnly(PartitionedStream partitionedStream)
+    {
+        // Extract the first group
+        var group1Stream = HandleGroupExtraction(Group1, _keys.GroupDataKeys[0], partitionedStream);
+        Group1Entries = UnpackGroupHeadersOnly(Group1, group1Stream);
 
-        // Set up some partitions that keep reads in the different sections of the archive
-        // isolated from each other.
-        var partitions = new long[] { 336, Group1.GetStoredSize(), Group2.GetStoredSize() };
-        var partitionedStream = new PartitionedStream(Reader.BaseStream, partitions);
-
-        // Skip the headers, which have already been read
-        Debug.Assert(partitionedStream.Position == 336, "Stream is at an unexpected position.");
+        // Move to the group 2 partition
         partitionedStream.NextPartition();
 
-        // Extract the archive contents
-        var group1Stream = HandleGroupExtraction(Group1, keys.GroupDataKeys[0], partitionedStream);
+        // Extract the next group
+        var group2Stream = HandleGroupExtraction(Group2, _keys.GroupDataKeys[1], partitionedStream);
+        Group2Entries = UnpackGroupHeadersOnly(Group2, group2Stream);
+    }
+
+    private void LoadFileEntries(PartitionedStream partitionedStream)
+    {
+        // Extract the first group
+        var group1Stream = HandleGroupExtraction(Group1, _keys.GroupDataKeys[0], partitionedStream);
         Group1Entries = UnpackGroup(Group1, group1Stream);
 
         // Move to the group 2 partition
         partitionedStream.NextPartition();
 
-        var group2Stream = HandleGroupExtraction(Group2, keys.GroupDataKeys[1], partitionedStream);
+        // Extract the next group
+        var group2Stream = HandleGroupExtraction(Group2, _keys.GroupDataKeys[1], partitionedStream);
         Group2Entries = UnpackGroup(Group2, group2Stream);
     }
 
@@ -173,6 +220,25 @@ public class IceV4File : IceFile
                 return inputStream;
             }
         }
+    }
+    
+    private static FileEntry[] UnpackGroupHeadersOnly(GroupHeader header, Stream data)
+    {
+        using var reader = new BinaryReader(data);
+        var entries = new FileEntry[header.FileCount];
+        for (var i = 0; i < header.FileCount; i++)
+        {
+            var entryHeader = FileEntryHeader.Read(reader);
+
+            if (i <= header.FileCount - 2)
+            {
+                reader.Seek(entryHeader.EntrySize - entryHeader.HeaderSize, SeekOrigin.Current);
+            }
+            
+            entries[i] = new FileEntry(entryHeader, Array.Empty<byte>());
+        }
+        
+        return entries;
     }
 
     private static FileEntry[] UnpackGroup(GroupHeader header, Stream data)

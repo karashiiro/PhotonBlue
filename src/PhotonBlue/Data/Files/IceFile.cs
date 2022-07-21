@@ -50,19 +50,15 @@ public class IceFile : FileResource
         }
     }
 
-    public struct FileEntry
+    public class FileEntry
     {
-        public FileEntryHeader Header;
-
-        // ReSharper disable once FieldCanBeMadeReadOnly.Global
-        public byte[] Data;
+        public FileEntryHeader Header { get; }
+        public byte[] Data { get; }
 
         public FileEntry(FileEntryHeader header, byte[] data)
         {
             Header = header;
             Data = data;
-
-            Debug.Assert(Header.DataSize == Data.Length, "File data size mismatch.");
         }
     }
 
@@ -95,7 +91,8 @@ public class IceFile : FileResource
                 Reserved3 = reader.ReadUInt32(),
                 Reserved4 = reader.ReadBytes(0x20),
             };
-            
+
+            Debug.Assert(header.HeaderSize % 16 == 0, "Invalid header size detected.");
             Debug.Assert(header.EntrySize > 0x40, "File size mismatch detected.");
             Debug.Assert(header.HeaderSize > 0x40, "Header size mismatch detected.");
 

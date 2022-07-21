@@ -46,7 +46,7 @@ public class GameFileIndexer : IGameFileIndexer
         {
             allFiles = allFiles.Concat(Directory.EnumerateFiles(win32RebootPath, "", SearchOption.AllDirectories)
                 .Select<string, (string, string, string?, string)>(file => (file, "win32reboot",
-                    new DirectoryInfo(Path.GetDirectoryName(file)).Name, Path.GetFileName(file))));
+                    new DirectoryInfo(Path.GetDirectoryName(file)!).Name, Path.GetFileName(file))));
         }
 
         // Process the files
@@ -70,7 +70,7 @@ public class GameFileIndexer : IGameFileIndexer
                 {
                     reader.BaseStream.Seek(0, SeekOrigin.Begin);
                     using var ice = new IceV4File(reader.BaseStream);
-                    ice.LoadFile();
+                    ice.LoadFileHeadersOnly();
 
                     return ice.Group1Entries
                         .Select(entry => ParsedFilePath.ParseFilePath($"{s}/{(r != null ? r + '/' : "")}{f}/{entry.Header.FileName}"))
