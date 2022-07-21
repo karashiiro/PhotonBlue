@@ -105,7 +105,6 @@ public class IceV4File : IceFile
     /// <param name="group">The group header.</param>
     /// <param name="keys">The group's decryption keys, if the file is encrypted.</param>
     /// <param name="data">The raw group data.</param>
-    /// <param name="result">The buffer that should contain the result data.</param>
     private Stream DecodeGroup(GroupHeader group, IReadOnlyList<uint> keys, Stream data)
     {
         var decryptStream = PrepareGroupDecryption(data, keys);
@@ -144,8 +143,6 @@ public class IceV4File : IceFile
     /// </summary>
     /// <param name="group">The group header.</param>
     /// <param name="inputStream">The input stream of decrypted group data.</param>
-    /// <param name="scratch">An array of a size equal to the input data, used for reading in temporary data.</param>
-    /// <param name="result">The buffer that should contain the result data.</param>
     private Stream DecompressGroup(GroupHeader group, Stream inputStream)
     {
         switch (group.CompressedSize)
