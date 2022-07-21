@@ -233,7 +233,7 @@ public class IceV4File : IceFile
             .Select(n =>
             {
                 var entryHeader = FileEntryHeader.Read(br);
-                if (n < totalFiles)
+                if (n < totalFiles - 1)
                     br.Seek(entryHeader.EntrySize - entryHeader.HeaderSize, SeekOrigin.Current);
                 return new FileEntry(entryHeader, Array.Empty<byte>());
             })
