@@ -209,6 +209,34 @@ public class IceV4FileTests
     }
     
     [Fact]
+    public void Should_Parse_Encrypted_PRS_Data_6()
+    {
+        using var data = File.OpenRead(@"..\..\..\..\..\testdata\000f4dde50137d18a3f595863423a93c");
+        var ice = new IceV4File(data);
+        ice.LoadFile();
+
+        Assert.Equal(1, ice.Group1Entries.Count);
+        Assert.All(ice.Group1Entries, AssertEntryValid);
+        
+        Assert.Equal(0, ice.Group2Entries.Count);
+        
+        var expected1 = File.ReadAllBytes(@"..\..\..\..\..\testdata\np_npc_536.cml");
+        var actual1 = ice.Group1Entries.First(entry => entry.Header.FileName == "np_npc_536.cml");
+        AssertDataEquivalent(expected1, actual1.Data);
+    }
+    
+    [Fact]
+    public void Should_Parse_Encrypted_PRS_Data_6_HeadersOnly()
+    {
+        using var data = File.OpenRead(@"..\..\..\..\..\testdata\000f4dde50137d18a3f595863423a93c");
+        var ice = new IceV4File(data);
+        ice.LoadFileHeadersOnly();
+
+        Assert.Equal(1, ice.Group1Entries.Count);
+        Assert.Equal(0, ice.Group2Entries.Count);
+    }
+    
+    [Fact]
     public void Should_Parse_Encrypted_Uncompressed_Data()
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\0006b03a4c2763ffcd7d4547f71600dd");

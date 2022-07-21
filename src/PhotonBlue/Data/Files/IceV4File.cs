@@ -79,8 +79,11 @@ public class IceV4File : IceFile
 
         // Extract the archive entry headers
         LoadFileEntriesHeadersOnly(partitionedStream);
-        
-        Debug.Assert(Reader.BaseStream.Position != Reader.BaseStream.Length, "The entire file was read.");
+
+        if (!Header.Flags.HasFlag(IceFileFlags.Kraken))
+        {
+            Debug.Assert(Reader.BaseStream.Position != Reader.BaseStream.Length, "The entire file was read.");
+        }
     }
 
     private void LoadHeaders()
@@ -123,12 +126,15 @@ public class IceV4File : IceFile
         var group1Stream = HandleGroupExtraction(Group1, _keys.GroupDataKeys[0], partitionedStream);
         Group1Entries = UnpackGroupHeadersOnly(0, group1FileCount, totalFiles, group1Stream);
 
-        // Move to the group 2 partition
-        partitionedStream.NextPartition();
+        if (Group2.FileCount > 0)
+        {
+            // Move to the group 2 partition
+            partitionedStream.NextPartition();
 
-        // Extract the next group
-        var group2Stream = HandleGroupExtraction(Group2, _keys.GroupDataKeys[1], partitionedStream);
-        Group2Entries = UnpackGroupHeadersOnly(group1FileCount, group2FileCount, totalFiles, group2Stream);
+            // Extract the next group
+            var group2Stream = HandleGroupExtraction(Group2, _keys.GroupDataKeys[1], partitionedStream);
+            Group2Entries = UnpackGroupHeadersOnly(group1FileCount, group2FileCount, totalFiles, group2Stream);
+        }
     }
 
     private void LoadFileEntries(PartitionedStream partitionedStream)
