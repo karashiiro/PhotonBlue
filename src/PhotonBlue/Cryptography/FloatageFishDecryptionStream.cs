@@ -14,14 +14,12 @@ public class FloatageFishDecryptionStream : Stream
     }
 
     private readonly Stream _stream;
-    private readonly uint _key;
-    private readonly int _shift;
+    private readonly byte _key;
 
-    public FloatageFishDecryptionStream(Stream data, uint key, int shift)
+    public FloatageFishDecryptionStream(Stream data, uint blowfishKey, int shift)
     {
         _stream = data;
-        _key = key;
-        _shift = shift;
+        _key = FloatageFish.CalculateKey(blowfishKey, shift);
     }
     
     public override void Flush()
@@ -38,14 +36,14 @@ public class FloatageFishDecryptionStream : Stream
         
         var outIndex = offset;
         var nRead = _stream.Read(buffer, outIndex, count);
-        FloatageFish.DecryptBlock(buffer, Convert.ToUInt32(outIndex), Convert.ToUInt32(nRead), _key, _shift);
+        FloatageFish.DecryptBlockWithKey(buffer, Convert.ToUInt32(outIndex), Convert.ToUInt32(nRead), _key);
         outIndex += nRead;
         return outIndex - offset;
     }
     
     public override int ReadByte()
     {
-        return FloatageFish.DecryptByte((byte)_stream.ReadByte(), _key, 16);
+        return FloatageFish.DecryptByteWithKey((byte)_stream.ReadByte(), _key);
     }
 
     public override long Seek(long offset, SeekOrigin origin)
