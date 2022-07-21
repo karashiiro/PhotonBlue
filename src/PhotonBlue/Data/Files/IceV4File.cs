@@ -113,16 +113,20 @@ public class IceV4File : IceFile
     
     private void LoadFileEntriesHeadersOnly(PartitionedStream partitionedStream)
     {
+        var group1FileCount = Convert.ToInt32(Group1.FileCount);
+        var group2FileCount = Convert.ToInt32(Group2.FileCount);
+        var totalFiles = group1FileCount + group2FileCount;
+        
         // Extract the first group
         var group1Stream = HandleGroupExtraction(Group1, _keys.GroupDataKeys[0], partitionedStream);
-        Group1Entries = UnpackGroupHeadersOnly(Group1, group1Stream);
+        Group1Entries = UnpackGroupHeadersOnly(0, group1FileCount, totalFiles, group1Stream);
 
         // Move to the group 2 partition
         partitionedStream.NextPartition();
 
         // Extract the next group
         var group2Stream = HandleGroupExtraction(Group2, _keys.GroupDataKeys[1], partitionedStream);
-        Group2Entries = UnpackGroupHeadersOnly(Group2, group2Stream);
+        Group2Entries = UnpackGroupHeadersOnly(group1FileCount, group2FileCount, totalFiles, group2Stream);
     }
 
     private void LoadFileEntries(PartitionedStream partitionedStream)
@@ -222,23 +226,18 @@ public class IceV4File : IceFile
         }
     }
     
-    private static FileEntry[] UnpackGroupHeadersOnly(GroupHeader header, Stream data)
+    private static FileEntry[] UnpackGroupHeadersOnly(int startFile, int endFile, int totalFiles, Stream data)
     {
-        using var reader = new BinaryReader(data);
-        var entries = new FileEntry[header.FileCount];
-        for (var i = 0; i < header.FileCount; i++)
-        {
-            var entryHeader = FileEntryHeader.Read(reader);
-
-            if (i <= header.FileCount - 2)
+        using var br = new BinaryReader(data);
+        return Enumerable.Range(startFile, endFile)
+            .Select(n =>
             {
-                reader.Seek(entryHeader.EntrySize - entryHeader.HeaderSize, SeekOrigin.Current);
-            }
-            
-            entries[i] = new FileEntry(entryHeader, Array.Empty<byte>());
-        }
-        
-        return entries;
+                var entryHeader = FileEntryHeader.Read(br);
+                if (n < totalFiles)
+                    br.Seek(entryHeader.EntrySize - entryHeader.HeaderSize, SeekOrigin.Current);
+                return new FileEntry(entryHeader, Array.Empty<byte>());
+            })
+            .ToArray();
     }
 
     private static FileEntry[] UnpackGroup(GroupHeader header, Stream data)

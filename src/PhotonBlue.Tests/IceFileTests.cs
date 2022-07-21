@@ -187,6 +187,17 @@ public class IceFileTests
     }
     
     [Fact]
+    public void IceFile_Parses_V4_Encrypted_PRS_Data_5_HeadersOnly()
+    {
+        using var data = File.OpenRead(@"..\..\..\..\..\testdata\00150669267df8e4fdfd58cda0c1b9a0");
+        var ice = new IceV4File(data);
+        ice.LoadFileHeadersOnly();
+
+        Assert.Equal(1, ice.Group1Entries.Count);
+        Assert.Equal(37, ice.Group2Entries.Count);
+    }
+    
+    [Fact]
     public void IceFile_Parses_V4_Encrypted_Uncompressed_Data()
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\0006b03a4c2763ffcd7d4547f71600dd");
