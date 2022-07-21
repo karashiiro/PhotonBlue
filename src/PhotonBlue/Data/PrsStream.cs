@@ -12,25 +12,20 @@ public class PrsStream : Stream
 
         public int Read(IList<byte> lookaround, int lookaroundOffset, IList<byte> buffer, int bufferIndex, int bufferCount)
         {
-            var initialIndex = bufferIndex;
-            var endIndex = bufferIndex + bufferCount;
-            for (; BytesRead < Size; ++BytesRead)
+            var toRead = Math.Min(bufferCount, Size - BytesRead);
+            BytesRead += toRead;
+            for (var i = 0; i < toRead; i++)
             {
+                // Read data from the lookaround buffer.
                 buffer[bufferIndex] = lookaround[LoadIndex++];
+                LoadIndex %= lookaround.Count;
                 
                 // Read through to the lookaround buffer.
                 lookaround[lookaroundOffset++] = buffer[bufferIndex++];
-                LoadIndex %= lookaround.Count;
                 lookaroundOffset %= lookaround.Count;
-                
-                if (bufferIndex == endIndex)
-                {
-                    ++BytesRead;
-                    return bufferIndex - initialIndex;
-                }
             }
             
-            return bufferIndex - initialIndex;
+            return toRead;
         }
     }
     
@@ -168,22 +163,23 @@ public class PrsStream : Stream
                 loadIndex += _lookaround.Length;
             }
             
-            for (var index = 0; index < controlSize; ++index)
+            var toRead = Math.Min(controlSize, endIndex - outIndex);
+            _bytesRead += toRead;
+            for (var index = 0; index < toRead; ++index)
             {
+                // Read data from the lookaround buffer.
                 buffer[outIndex] = _lookaround[loadIndex++];
-                
-                // Read data into the lookaround, as well.
-                _lookaround[_lookaroundIndex++] = buffer[outIndex++];
                 loadIndex %= _lookaround.Length;
+                
+                // Read through to the lookaround buffer.
+                _lookaround[_lookaroundIndex++] = buffer[outIndex++];
                 _lookaroundIndex %= _lookaround.Length;
-                _bytesRead++;
-
-                if (outIndex == endIndex && index + 1 != controlSize)
-                {
-                    // Store the current PRS instruction so we can resume it on the next read.
-                    _currentInstruction = new PrsPointer { LoadIndex = loadIndex, Size = controlSize, BytesRead = index + 1 };
-                    break;
-                }
+            }
+            
+            if (toRead != controlSize)
+            {
+                // Store the current PRS instruction so we can resume it on the next read.
+                _currentInstruction = new PrsPointer { LoadIndex = loadIndex, Size = controlSize, BytesRead = toRead };
             }
             
             Debug.Assert(_bytesRead % _lookaround.Length == _lookaroundIndex, "Bytes read and lookaround index are not synced.");
