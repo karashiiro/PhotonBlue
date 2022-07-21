@@ -79,6 +79,8 @@ public class IceV4File : IceFile
 
         // Extract the archive entry headers
         LoadFileEntriesHeadersOnly(partitionedStream);
+        
+        Debug.Assert(Reader.BaseStream.Position != Reader.BaseStream.Length, "The entire file was read.");
     }
 
     private void LoadHeaders()
