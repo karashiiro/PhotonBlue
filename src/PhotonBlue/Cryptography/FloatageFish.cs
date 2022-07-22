@@ -32,34 +32,28 @@ public class FloatageFish
         return data;
     }
     
-    public static void DecryptBlock(byte[] dataBlock, uint offset, uint length, uint blowfishKey, int shift)
+    public static void DecryptBlock(byte[] dataBlock, int offset, int length, uint blowfishKey, int shift)
     {
         var xorByte = CalculateKey(blowfishKey, shift);
-        for (var i = offset; i < length; ++i)
+        var block = new Span<byte>(dataBlock, offset, length);
+        for (var i = 0; i < block.Length; i++)
         {
-            if (dataBlock[i] != 0 && dataBlock[i] != xorByte)
+            if (block[i] != 0 && block[i] != xorByte)
             {
-                dataBlock[i] = (byte)(dataBlock[i] ^ xorByte);
-            }
-            else
-            {
-                dataBlock[i] = dataBlock[i];
+                block[i] = (byte)(block[i] ^ xorByte);
             }
         }
     }
     
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void DecryptBlockWithKey(byte[] dataBlock, uint offset, uint length, byte key)
+    public static void DecryptBlockWithKey(byte[] dataBlock, int offset, int length, byte key)
     {
-        for (var i = offset; i < length; ++i)
+        var block = new Span<byte>(dataBlock, offset, length);
+        for (var i = 0; i < block.Length; i++)
         {
-            if (dataBlock[i] != 0 && dataBlock[i] != key)
+            if (block[i] != 0 && block[i] != key)
             {
-                dataBlock[i] = (byte)(dataBlock[i] ^ key);
-            }
-            else
-            {
-                dataBlock[i] = dataBlock[i];
+                block[i] = (byte)(block[i] ^ key);
             }
         }
     }

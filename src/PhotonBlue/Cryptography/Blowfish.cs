@@ -241,7 +241,7 @@ public class Blowfish
     {
         for (var i = 0; i < data.Length; i += 8)
         {
-            var (l, r) = Decrypt(BitConverter.ToUInt32(data, i), BitConverter.ToUInt32(data, i + 4));
+            var (l, r) = Decrypt(BitConverter.ToUInt32(data.AsSpan(i, 4)), BitConverter.ToUInt32(data.AsSpan(i + 4)));
             Unsafe.As<byte, uint>(ref data[i]) = l;
             Unsafe.As<byte, uint>(ref data[i + 4]) = r;
         }
@@ -253,7 +253,7 @@ public class Blowfish
         // the last (8 - data.Length % 8) bytes. This is as dumb as it is unsurprising.
         for (var i = 0; i + 7 < data.Length; i += 8)
         {
-            var (l, r) = Decrypt(BitConverter.ToUInt32(data, i), BitConverter.ToUInt32(data, i + 4));
+            var (l, r) = Decrypt(BitConverter.ToUInt32(data.AsSpan(i, 4)), BitConverter.ToUInt32(data.AsSpan(i + 4)));
             Unsafe.As<byte, uint>(ref data[i]) = l;
             Unsafe.As<byte, uint>(ref data[i + 4]) = r;
         }

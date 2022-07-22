@@ -10,22 +10,23 @@ public class PrsStream : Stream
         public int BytesRead { get; set; }
         public int Size { get; init; }
 
-        public int Read(IList<byte> lookaround, int lookaroundOffset, IList<byte> buffer, int bufferIndex,
+        public int Read(IList<byte> lookaround, int lookaroundOffset, byte[] buffer, int bufferIndex,
             int bufferCount)
         {
             var toRead = Math.Min(bufferCount, Size - BytesRead);
-            BytesRead += toRead;
-            for (var i = 0; i < toRead; i++)
+            var copyTarget = new Span<byte>(buffer, bufferIndex, toRead);
+            for (var i = 0; i < copyTarget.Length; i++)
             {
                 // Read data from the lookaround buffer.
-                buffer[bufferIndex] = lookaround[LoadIndex++];
-                LoadIndex %= lookaround.Count;
+                copyTarget[i] = lookaround[LoadIndex];
 
                 // Read through to the lookaround buffer.
-                lookaround[lookaroundOffset++] = buffer[bufferIndex++];
+                lookaround[lookaroundOffset++] = lookaround[LoadIndex++];
+                LoadIndex %= lookaround.Count;
                 lookaroundOffset %= lookaround.Count;
             }
-
+            
+            BytesRead += toRead;
             return toRead;
         }
 
@@ -175,25 +176,29 @@ public class PrsStream : Stream
             }
 
             Debug.Assert(controlOffset != 0 && _bytesRead >= -controlOffset, "Bad copy instruction detected.");
-
+            
             var loadIndex = (_lookaroundIndex + controlOffset) % _lookaround.Length;
             if (loadIndex < 0)
             {
                 loadIndex += _lookaround.Length;
             }
 
+            // Copy a run from the lookaround buffer into the output buffer.
             var toRead = Math.Min(controlSize, endIndex - outIndex);
-            _bytesRead += toRead;
-            for (var index = 0; index < toRead; ++index)
+            var copyTarget = new Span<byte>(buffer, outIndex, toRead);
+            for (var i = 0; i < copyTarget.Length; i++)
             {
                 // Read data from the lookaround buffer.
-                buffer[outIndex] = _lookaround[loadIndex++];
-                loadIndex %= _lookaround.Length;
+                copyTarget[i] = _lookaround[loadIndex];
 
                 // Read through to the lookaround buffer.
-                _lookaround[_lookaroundIndex++] = buffer[outIndex++];
+                _lookaround[_lookaroundIndex++] = _lookaround[loadIndex++];
+                loadIndex %= _lookaround.Length;
                 _lookaroundIndex %= _lookaround.Length;
             }
+            
+            outIndex += toRead;
+            _bytesRead += toRead;
 
             if (toRead != controlSize)
             {

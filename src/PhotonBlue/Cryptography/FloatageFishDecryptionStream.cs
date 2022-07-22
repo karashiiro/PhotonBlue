@@ -36,7 +36,7 @@ public class FloatageFishDecryptionStream : Stream
         
         var outIndex = offset;
         var nRead = _stream.Read(buffer, outIndex, count);
-        FloatageFish.DecryptBlockWithKey(buffer, Convert.ToUInt32(outIndex), Convert.ToUInt32(nRead), _key);
+        FloatageFish.DecryptBlockWithKey(buffer, outIndex, nRead, _key);
         outIndex += nRead;
         return outIndex - offset;
     }
