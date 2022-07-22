@@ -96,6 +96,7 @@ public class IceFile : FileResource
             Debug.Assert(header.EntrySize > 0x40, "File size mismatch detected.");
             Debug.Assert(header.HeaderSize > 0x40, "Header size mismatch detected.");
 
+            // This does not read the null terminator. The seek handles that appropriately.
             header.FileNameRaw = reader.ReadBytes(Convert.ToInt32(header.FileNameLength));
 
             // The name area size is a multiple of 0x10, but the name length can be less than that.
