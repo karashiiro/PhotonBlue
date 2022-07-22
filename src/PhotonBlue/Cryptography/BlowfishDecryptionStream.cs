@@ -11,7 +11,7 @@ public class BlowfishDecryptionStream : Stream
 
     public override long Position
     {
-        get => _bytesProduced;
+        get => _stream.Position - HoldCount;
         set => throw new NotSupportedException();
     }
 
@@ -24,11 +24,6 @@ public class BlowfishDecryptionStream : Stream
     private int _holdStart;
     private int _holdEnd;
 
-    // Tracks the number of bytes actually produced, as opposed to the bytes
-    // read from the underlying stream. This is important for maintaining a
-    // length property that is unrelated to the hold buffer. 
-    private int _bytesProduced;
-
     private readonly Blowfish _blowfish;
     private readonly Stream _stream;
 
@@ -37,8 +32,6 @@ public class BlowfishDecryptionStream : Stream
         _hold = new byte[8];
         _holdStart = 0;
         _holdEnd = 0;
-        
-        _bytesProduced = 0;
         
         _blowfish = new Blowfish(key);
         _stream = data;
@@ -71,9 +64,7 @@ public class BlowfishDecryptionStream : Stream
         if (nLeft == 0)
         {
             // All requested data was retrieved from the hold buffer.
-            var produced = outIndex - offset;
-            _bytesProduced += produced;
-            return produced;
+            return outIndex - offset;
         }
 
         // Create a padded buffer that can hold a multiple of 8 bytes for decryption, and
@@ -86,9 +77,7 @@ public class BlowfishDecryptionStream : Stream
         // No data remaining; return early.
         if (nRead == 0)
         {
-            var produced = outIndex - offset;
-            _bytesProduced += produced;
-            return produced;
+            return outIndex - offset;
         }
 
         if (_stream.Length % 8 == 0 || _stream.Length - _stream.Position >= 8)
@@ -118,9 +107,7 @@ public class BlowfishDecryptionStream : Stream
         // We lie about the returned number of bytes and only inform the consumer that
         // we have read up to the requested amount of data. In reality, we may have
         // read more than that and stored it in our internal buffer.
-        var producedCount = Math.Min(outIndex - offset, count);
-        _bytesProduced += producedCount;
-        return producedCount;
+        return Math.Min(outIndex - offset, count);
     }
 
     private void LoadHeldBytes(byte[] buffer, int offset, int count)
@@ -146,8 +133,6 @@ public class BlowfishDecryptionStream : Stream
 
     public override int ReadByte()
     {
-        _bytesProduced++;
-        
         // Read data from the internal buffer.
         if (HoldCount != 0)
         {
@@ -181,20 +166,36 @@ public class BlowfishDecryptionStream : Stream
 
     public override long Seek(long offset, SeekOrigin origin)
     {
-        // This is a poor implementation, but it correctly manages the hold buffer's state.
         var absoluteOffset = origin switch
         {
             SeekOrigin.Begin => offset,
-            SeekOrigin.Current => offset + _stream.Position,
-            SeekOrigin.End => _stream.Length - offset,
+            SeekOrigin.Current => offset + Position,
+            SeekOrigin.End => Length - offset,
             _ => throw new ArgumentOutOfRangeException(nameof(origin), origin, null),
         };
 
-        Debug.Assert(absoluteOffset >= _stream.Position, "This stream does not support seeking to consumed data.");
+        var count = absoluteOffset - Position;
+        if (count >= HoldCount)
+        {
+            count -= HoldCount;
+            _holdStart = 0;
+            _holdEnd = 0;
+        }
 
-        var count = absoluteOffset - _stream.Position;
-        var buf = new byte[count];
-        return _stream.Position + Read(buf, 0, Convert.ToInt32(count));
+        if (count == 0)
+        {
+            return Position;
+        }
+        
+        var alignedCount = count - count % 8;
+        _stream.Seek(alignedCount, SeekOrigin.Current);
+        if (count - alignedCount == 0)
+        {
+            return Position;
+        }
+        
+        var buf = new byte[count - alignedCount];
+        return Position + Read(buf, 0, buf.Length);
     }
 
     public override void SetLength(long value)

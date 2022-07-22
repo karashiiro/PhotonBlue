@@ -16,6 +16,7 @@ public class PartitionedStream : Stream
     }
 
     private long _partitionStart;
+    private long _partitionAfter;
     private long _partitionLength;
     private long _partitionPosition;
 
@@ -31,6 +32,7 @@ public class PartitionedStream : Stream
         
         _partitionStart = 0;
         _partitionLength = _partitions[_currentPartition];
+        _partitionAfter = data.Length - _partitionLength;
         _partitionPosition = Math.Min(data.Position, _partitionLength);
     }
 
@@ -44,6 +46,7 @@ public class PartitionedStream : Stream
         _currentPartition++;
         _partitionStart = _partitions.Take(_currentPartition).Sum();
         _partitionLength = _partitions[_currentPartition];
+        _partitionAfter = _stream.Length - _partitionLength;
         _partitionPosition = 0;
         
         // Seek to the start of the partition, in case we aren't there yet
@@ -72,16 +75,17 @@ public class PartitionedStream : Stream
 
     public override long Seek(long offset, SeekOrigin origin)
     {
-        var absoluteOffset = origin switch
+        var normalizedOffset = origin switch
         {
             SeekOrigin.Begin => offset + _partitionStart,
-            SeekOrigin.Current => offset + _stream.Position,
-            SeekOrigin.End => offset + _partitionLength + _partitionStart,
+            SeekOrigin.Current => offset,
+            SeekOrigin.End => _partitionAfter + offset,
             _ => throw new ArgumentOutOfRangeException(nameof(origin), origin, null),
         };
 
-        var constrainedOffset = Math.Max(0, Math.Min(_partitionStart + _partitionLength, absoluteOffset));
-        _partitionPosition = _stream.Seek(constrainedOffset, origin) - _partitionStart;
+        _partitionPosition = _stream.Seek(normalizedOffset, origin) - _partitionStart;
+        Debug.Assert(_partitionPosition <= _partitionLength, "Seeked past the end of the partition.");
+        Debug.Assert(_partitionPosition >= 0, "Seeked before the beginning of the partition.");
         return _partitionPosition;
     }
 

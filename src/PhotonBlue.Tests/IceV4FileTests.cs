@@ -255,6 +255,17 @@ public class IceV4FileTests
         var actual2 = ice.Group2Entries.First(entry => entry.Header.FileName == "11_sound_voice_bt_npc_5180.snd");
         AssertDataEquivalent(expected2, actual2.Data);
     }
+    
+    [Fact]
+    public void Should_Parse_Encrypted_Uncompressed_Data_HeadersOnly()
+    {
+        using var data = File.OpenRead(@"..\..\..\..\..\testdata\0006b03a4c2763ffcd7d4547f71600dd");
+        var ice = new IceV4File(data);
+        ice.LoadFileHeadersOnly();
+        
+        Assert.Equal(0, ice.Group1Entries.Count);
+        Assert.Equal(2, ice.Group2Entries.Count);
+    }
 
     private static void AssertDataEquivalent(IReadOnlyCollection<byte> expected, IReadOnlyCollection<byte> actual)
     {
