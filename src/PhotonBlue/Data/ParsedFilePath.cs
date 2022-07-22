@@ -5,23 +5,23 @@ public class ParsedFilePath
     /// <summary>
     /// The file's resource folder; win32 or win32reboot/{byte}.
     /// </summary>
-    public string ResourceFolder { get; private init; }
+    public string? ResourceFolder { get; private init; }
     
     /// <summary>
     /// The final part of the file path on the filesystem. Multiple
     /// logical files can exist in a single packed file.
     /// </summary>
-    public string PackName { get; private init; }
+    public string? PackName { get; private init; }
     
     /// <summary>
     /// The file's extracted name.
     /// </summary>
-    public string FileName { get; private init; }
+    public string? FileName { get; private init; }
     
     /// <summary>
     /// The raw path provided when parsing the initial path.
     /// </summary>
-    public string RawPath { get; private init; }
+    public string? RawPath { get; private init; }
 
     public static ParsedFilePath? ParseFilePath(string path)
     {
