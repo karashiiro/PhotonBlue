@@ -10,7 +10,8 @@ public class PrsStream : Stream
         public int BytesRead { get; set; }
         public int Size { get; init; }
 
-        public int Read(IList<byte> lookaround, int lookaroundOffset, IList<byte> buffer, int bufferIndex, int bufferCount)
+        public int Read(IList<byte> lookaround, int lookaroundOffset, IList<byte> buffer, int bufferIndex,
+            int bufferCount)
         {
             var toRead = Math.Min(bufferCount, Size - BytesRead);
             BytesRead += toRead;
@@ -19,15 +20,15 @@ public class PrsStream : Stream
                 // Read data from the lookaround buffer.
                 buffer[bufferIndex] = lookaround[LoadIndex++];
                 LoadIndex %= lookaround.Count;
-                
+
                 // Read through to the lookaround buffer.
                 lookaround[lookaroundOffset++] = buffer[bufferIndex++];
                 lookaroundOffset %= lookaround.Count;
             }
-            
+
             return toRead;
         }
-        
+
         public int Skip(IList<byte> lookaround, int lookaroundOffset, int count)
         {
             var toRead = Math.Min(count, Size - BytesRead);
@@ -38,11 +39,11 @@ public class PrsStream : Stream
                 LoadIndex %= lookaround.Count;
                 lookaroundOffset %= lookaround.Count;
             }
-            
+
             return toRead;
         }
     }
-    
+
     private const int MinLongCopyLength = 10;
 
     public override bool CanRead => true;
@@ -55,15 +56,15 @@ public class PrsStream : Stream
         get => throw new NotSupportedException();
         set => throw new NotSupportedException();
     }
-
-    private int _ctrlByteCounter = 0;
-    private byte _ctrlByte = 0;
+    
+    private byte _ctrlByte;
+    private int _ctrlByteCounter;
 
     // An internal buffer for maintaining some of the decompressed data
     // between reads. This is used as a ring queue.
     private readonly byte[] _lookaround;
     private int _lookaroundIndex;
-    
+
     // A reference value for ensuring that our lookaround index is synchronized
     // with the data that we want to read. This is only used for debugging.
     private int _bytesRead;
@@ -75,9 +76,13 @@ public class PrsStream : Stream
 
     public PrsStream(Stream input)
     {
+        _ctrlByteCounter = 8;
+        _ctrlByte = 0;
+        
         _lookaround = new byte[0x1FFF];
         _lookaroundIndex = 0;
         _bytesRead = 0;
+        
         _stream = input;
     }
 
@@ -91,7 +96,7 @@ public class PrsStream : Stream
         {
             return 0;
         }
-        
+
         var outIndex = offset;
         var endIndex = offset + count;
 
@@ -102,32 +107,32 @@ public class PrsStream : Stream
             outIndex += nRead;
             _lookaroundIndex = (_lookaroundIndex + nRead) % _lookaround.Length;
             _bytesRead += nRead;
-            
+
             if (_currentInstruction.BytesRead == _currentInstruction.Size)
             {
                 _currentInstruction = null;
             }
-            
+
             if (outIndex == endIndex)
             {
                 return outIndex - offset;
             }
         }
-        
+
         while (outIndex < endIndex)
         {
             if (GetControlBit())
             {
                 // Raw data read
                 buffer[outIndex] = (byte)GetNextByte();
-                
+
                 // Every byte that is read to the output buffer also needs to be read into
                 // the lookaround. This allows for incremental decompression, which is important
                 // for minimizing the amount of work done during file indexing.
                 _lookaround[_lookaroundIndex++] = buffer[outIndex++];
                 _lookaroundIndex %= _lookaround.Length;
                 _bytesRead++;
-                
+
                 continue;
             }
 
@@ -165,18 +170,18 @@ public class PrsStream : Stream
                     controlSize += 2;
                 if (GetControlBit())
                     ++controlSize;
-                
+
                 controlOffset = GetNextByte() - 256;
             }
-            
+
             Debug.Assert(controlOffset != 0 && _bytesRead >= -controlOffset, "Bad copy instruction detected.");
-            
+
             var loadIndex = (_lookaroundIndex + controlOffset) % _lookaround.Length;
             if (loadIndex < 0)
             {
                 loadIndex += _lookaround.Length;
             }
-            
+
             var toRead = Math.Min(controlSize, endIndex - outIndex);
             _bytesRead += toRead;
             for (var index = 0; index < toRead; ++index)
@@ -184,29 +189,23 @@ public class PrsStream : Stream
                 // Read data from the lookaround buffer.
                 buffer[outIndex] = _lookaround[loadIndex++];
                 loadIndex %= _lookaround.Length;
-                
+
                 // Read through to the lookaround buffer.
                 _lookaround[_lookaroundIndex++] = buffer[outIndex++];
                 _lookaroundIndex %= _lookaround.Length;
             }
-            
+
             if (toRead != controlSize)
             {
                 // Store the current PRS instruction so we can resume it on the next read.
                 _currentInstruction = new PrsPointer { LoadIndex = loadIndex, Size = controlSize, BytesRead = toRead };
             }
-            
-            Debug.Assert(_bytesRead % _lookaround.Length == _lookaroundIndex, "Bytes read and lookaround index are not synced.");
+
+            Debug.Assert(_bytesRead % _lookaround.Length == _lookaroundIndex,
+                "Bytes read and lookaround index are not synced.");
         }
 
         return outIndex - offset;
-    }
-
-    private int GetNextByte()
-    {
-        var next = _stream.ReadByte();
-        Debug.Assert(next != -1, "Unexpected end of stream.");
-        return next;
     }
 
     public override long Seek(long offset, SeekOrigin origin)
@@ -231,18 +230,18 @@ public class PrsStream : Stream
             outIndex += nRead;
             _lookaroundIndex = (_lookaroundIndex + nRead) % _lookaround.Length;
             _bytesRead += nRead;
-            
+
             if (_currentInstruction.BytesRead == _currentInstruction.Size)
             {
                 _currentInstruction = null;
             }
-            
+
             if (outIndex == count)
             {
                 return outIndex - offset;
             }
         }
-        
+
         while (outIndex < count)
         {
             if (GetControlBit())
@@ -288,18 +287,18 @@ public class PrsStream : Stream
                     controlSize += 2;
                 if (GetControlBit())
                     ++controlSize;
-                
+
                 controlOffset = GetNextByte() - 256;
             }
-            
+
             Debug.Assert(controlOffset != 0 && _bytesRead >= -controlOffset, "Bad copy instruction detected.");
-            
+
             var loadIndex = (_lookaroundIndex + controlOffset) % _lookaround.Length;
             if (loadIndex < 0)
             {
                 loadIndex += _lookaround.Length;
             }
-            
+
             var toRead = Math.Min(controlSize, count - outIndex);
             _bytesRead += toRead;
             for (var index = 0; index < toRead; ++index)
@@ -309,14 +308,15 @@ public class PrsStream : Stream
                 _lookaroundIndex %= _lookaround.Length;
                 outIndex++;
             }
-            
+
             if (toRead != controlSize)
             {
                 // Store the current PRS instruction so we can resume it on the next read.
                 _currentInstruction = new PrsPointer { LoadIndex = loadIndex, Size = controlSize, BytesRead = toRead };
             }
-            
-            Debug.Assert(_bytesRead % _lookaround.Length == _lookaroundIndex, "Bytes read and lookaround index are not synced.");
+
+            Debug.Assert(_bytesRead % _lookaround.Length == _lookaroundIndex,
+                "Bytes read and lookaround index are not synced.");
         }
 
         return _stream.Position + outIndex - offset;
@@ -334,19 +334,19 @@ public class PrsStream : Stream
 
     private bool GetControlBit()
     {
-        if (_ctrlByteCounter == 0)
+        if (_ctrlByteCounter == 8)
         {
-            var next = _stream.ReadByte();
-            Debug.Assert(next != -1, "Unexpected end of stream.");
-            
-            _ctrlByte = (byte)next;
-            _ctrlByteCounter = 8;
+            _ctrlByte = (byte)GetNextByte();
+            _ctrlByteCounter = 0;
         }
 
-        var flag = (_ctrlByte & 1U) > 0U;
-        _ctrlByte >>= 1;
-        --_ctrlByteCounter;
+        return (_ctrlByte & (1 << _ctrlByteCounter++)) > 0;
+    }
 
-        return flag;
+    private int GetNextByte()
+    {
+        var next = _stream.ReadByte();
+        Debug.Assert(next != -1, "Unexpected end of stream.");
+        return next;
     }
 }
