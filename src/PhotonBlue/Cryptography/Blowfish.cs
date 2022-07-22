@@ -263,6 +263,12 @@ public class Blowfish
             Unsafe.As<byte, uint>(ref data[i + 4]) = r;
         }
     }
+    
+    private ref uint GetPBoxElementRef(nint index)
+    {
+        ref var data = ref MemoryMarshal.GetArrayDataReference(p);
+        return ref Unsafe.Add(ref data, index);
+    }
 
     private ref uint GetSBoxElementRef(nuint outer, nuint inner)
     {
@@ -283,26 +289,26 @@ public class Blowfish
     {
         for (var i = 0; i < Rounds; i += 2)
         {
-            l ^= p[i];
+            l ^= GetPBoxElementRef(i);
             r ^= F(l);
-            r ^= p[i + 1];
+            r ^= GetPBoxElementRef(i + 1);
             l ^= F(r);
         }
 
-        return (r ^ p[17], l ^ p[16]);
+        return (r ^ GetPBoxElementRef(17), l ^ GetPBoxElementRef(16));
     }
 
     private (uint, uint) Decrypt(uint l, uint r)
     {
         for (var i = Rounds; i > 0; i -= 2)
         {
-            l ^= p[i + 1];
+            l ^= GetPBoxElementRef(i + 1);
             r ^= F(l);
-            r ^= p[i];
+            r ^= GetPBoxElementRef(i);
             l ^= F(r);
         }
 
-        return (r ^ p[0], l ^ p[1]);
+        return (r ^ GetPBoxElementRef(0), l ^ GetPBoxElementRef(1));
     }
 
     private static IEnumerable<TSource> Cycle<TSource>(IEnumerable<TSource> source)
