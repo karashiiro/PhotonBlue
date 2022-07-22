@@ -222,7 +222,6 @@ public class Blowfish
 
     public byte[] Encrypt(byte[] data)
     {
-        // TODO: Make this not pad the data; see below.
         var paddedLength = data.Length % 8 == 0 ? data.Length : data.Length + (8 - data.Length % 8);
         var buffer = new byte[paddedLength];
         Buffer.BlockCopy(data, 0, buffer, 0, data.Length);
