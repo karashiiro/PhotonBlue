@@ -6,7 +6,7 @@ using PhotonBlue.Ooz;
 
 namespace PhotonBlue.Data.Files;
 
-[Magic("ICE")]
+[FileMagic("ICE")]
 public class IceV4File : IceFile
 {
     public struct GroupHeader

@@ -39,19 +39,19 @@ public abstract class FileResource
             Reader = new BinaryReader(data),
         };
 
-        var magicAttr = typeof(T).GetCustomAttribute<MagicAttribute>();
+        var magicAttr = typeof(T).GetCustomAttribute<FileMagicAttribute>();
         if (magicAttr != null)
         {
             var magic = file.Reader.ReadBytes(4);
             var magicStr = Encoding.UTF8.GetString(magic).TrimEnd('\u0000');
-            if (magicStr == magicAttr.Magic)
+            if (magicStr == magicAttr.Value)
             {
                 file.BaseStream.Seek(0, SeekOrigin.Begin);
             }
             else
             {
                 throw new InvalidOperationException(
-                    $"Invalid file magic: Expected {magicAttr.Magic}, got {magicStr}.");
+                    $"Invalid file magic: Expected {magicAttr.Value}, got {magicStr}.");
             }
         }
 
