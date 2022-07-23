@@ -241,6 +241,7 @@ public class IceV4File : IceFile
             .Select(n =>
             {
                 var entryHeader = FileEntryHeader.Read(br);
+                // If this is the last file in the archive, we can just ignore its data entirely.
                 if (n < totalFiles - 1)
                     br.Seek(entryHeader.EntrySize - entryHeader.HeaderSize, SeekOrigin.Current);
                 return new FileEntry(entryHeader);
