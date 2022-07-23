@@ -128,6 +128,13 @@ public class IceFile : FileResource
 
     public override void LoadFile()
     {
+        Debug.Assert(Reader != null);
+        Header = FileHeader.Read(Reader);
+    }
+    
+    public override void LoadHeadersOnly()
+    {
+        Debug.Assert(Reader != null);
         Header = FileHeader.Read(Reader);
     }
 }

@@ -57,7 +57,12 @@ public class IceV4File : IceFile
 
     public override void LoadFile()
     {
-        LoadHeaders();
+        // Read the ICE archive headers
+        base.LoadFile();
+        Debug.Assert(Header.Version == 4, "Incorrect ICE version detected!");
+        LoadGroupHeaders();
+        
+        Debug.Assert(Reader != null);
 
         // Set up some partitions that keep reads in the different sections of the archive
         // isolated from each other.
@@ -74,7 +79,12 @@ public class IceV4File : IceFile
 
     public override void LoadHeadersOnly()
     {
-        LoadHeaders();
+        // Read the ICE archive headers
+        base.LoadHeadersOnly();
+        Debug.Assert(Header.Version == 4, "Incorrect ICE version detected!");
+        LoadGroupHeaders();
+        
+        Debug.Assert(Reader != null);
 
         // Set up some partitions that keep reads in the different sections of the archive
         // isolated from each other.
@@ -94,13 +104,10 @@ public class IceV4File : IceFile
         }
     }
 
-    private void LoadHeaders()
+    private void LoadGroupHeaders()
     {
-        // Read the ICE archive header
-        base.LoadFile();
-
-        Debug.Assert(Header.Version == 4, "Incorrect ICE version detected!");
-
+        Debug.Assert(Reader != null);
+        
         // Decrypt the file headers, if necessary
         _keys = new BlowfishKeys();
         if (Header.Flags.HasFlag(IceFileFlags.Encrypted))
