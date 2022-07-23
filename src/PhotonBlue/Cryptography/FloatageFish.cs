@@ -2,7 +2,7 @@
 
 namespace PhotonBlue.Cryptography;
 
-public class FloatageFish
+internal sealed class FloatageFish
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static byte CalculateKey(uint blowfishKey, int shift)

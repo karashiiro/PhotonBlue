@@ -1,6 +1,6 @@
 ﻿namespace PhotonBlue.Cryptography;
 
-public class Crc32
+internal sealed class Crc32
 {
     private const uint Poly = 0xedb88320;
 

@@ -1,6 +1,6 @@
 ﻿namespace PhotonBlue.Cryptography;
 
-public class FloatageFishDecryptionStream : Stream
+internal sealed class FloatageFishDecryptionStream : Stream
 {
     public override bool CanRead => _stream.CanRead;
     public override bool CanSeek => _stream.CanSeek;
