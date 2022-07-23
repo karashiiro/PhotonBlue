@@ -32,8 +32,8 @@ public class GameFileIndexer : IGameFileIndexer
         }
 
         // Enumerate all of the relevant file paths
-        var win32Path = Path.Combine(dataPath, "win32");
-        var win32RebootPath = Path.Combine(dataPath, "win32reboot");
+        var win32Path = Path.Combine(dataPath, "data", "win32");
+        var win32RebootPath = Path.Combine(dataPath, "data", "win32reboot");
         var allFiles = Enumerable.Empty<(string, string, string?, string)>();
 
         if (Directory.Exists(win32Path))

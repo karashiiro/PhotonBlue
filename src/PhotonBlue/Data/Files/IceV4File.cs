@@ -1,10 +1,12 @@
 ﻿using System.Diagnostics;
+using PhotonBlue.Attributes;
 using PhotonBlue.Cryptography;
 using PhotonBlue.Extensions;
 using PhotonBlue.Ooz;
 
 namespace PhotonBlue.Data.Files;
 
+[Magic("ICE")]
 public class IceV4File : IceFile
 {
     public struct GroupHeader
