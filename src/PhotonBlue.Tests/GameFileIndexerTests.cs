@@ -10,6 +10,6 @@ public class GameFileIndexerTests
     {
         using var gameData = new GameData(@"D:\PHANTASYSTARONLINE2_JP\pso2_bin");
         gameData.Index.LoadFromDataPath(@"D:\PHANTASYSTARONLINE2_JP\pso2_bin");
-        Assert.All(gameData.Index.ListFiles().Take(5000), path => Assert.True(path.FileName!.Length > 0));
+        Assert.All(gameData.Index.ListFiles().Take(10000), path => Assert.True(path.FileName!.Length > 0));
     }
 }

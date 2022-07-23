@@ -7,8 +7,7 @@ public class FileHandleManager : IDisposable
     private readonly ConcurrentQueue<(bool, WeakReference<BaseFileHandle>)> _fileQueue;
 
     private readonly CancellationTokenSource? _tokenSource;
-    private readonly Thread? _loadThread1;
-    private readonly Thread? _loadThread2;
+    private readonly Thread[] _loadThreads;
 
     public FileHandleManager(bool processQueueInternally)
     {
@@ -18,11 +17,16 @@ public class FileHandleManager : IDisposable
         {
             _tokenSource = new CancellationTokenSource();
 
-            _loadThread1 = new Thread(LoadThreadBody);
-            _loadThread1.Start();
-
-            _loadThread2 = new Thread(LoadThreadBody);
-            _loadThread2.Start();
+            _loadThreads = new Thread[2];
+            for (var i = 0; i < _loadThreads.Length; i++)
+            {
+                _loadThreads[i] = new Thread(LoadInternally);
+                _loadThreads[i].Start();
+            }
+        }
+        else
+        {
+            _loadThreads = Array.Empty<Thread>();
         }
     }
 
@@ -66,7 +70,7 @@ public class FileHandleManager : IDisposable
         }
     }
 
-    private void LoadThreadBody()
+    private void LoadInternally()
     {
         while (!_tokenSource!.IsCancellationRequested)
         {
@@ -89,8 +93,11 @@ public class FileHandleManager : IDisposable
     public void Dispose()
     {
         _tokenSource?.Cancel();
-        _loadThread1?.Join();
-        _loadThread2?.Join();
+        foreach (var t in _loadThreads)
+        {
+            t.Join();
+        }
+        
         GC.SuppressFinalize(this);
     }
 }
