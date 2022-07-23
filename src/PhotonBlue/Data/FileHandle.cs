@@ -1,8 +1,4 @@
-﻿using System.Reflection;
-using System.Text;
-using PhotonBlue.Attributes;
-
-namespace PhotonBlue.Data;
+﻿namespace PhotonBlue.Data;
 
 public class FileHandle<T> : BaseFileHandle where T : FileResource, new()
 {
@@ -13,6 +9,7 @@ public class FileHandle<T> : BaseFileHandle where T : FileResource, new()
     public override void Load()
     {
         State = FileState.Loading;
+        LoadException = null;
 
         try
         {
@@ -23,8 +20,9 @@ public class FileHandle<T> : BaseFileHandle where T : FileResource, new()
             State = FileState.Loaded;
             Instance = file;
         }
-        catch
+        catch (Exception e)
         {
+            LoadException = e;
             State = FileState.Error;
         }
     }

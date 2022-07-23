@@ -5,11 +5,13 @@ namespace PhotonBlue;
 
 public class GameFileIndexer : IGameFileIndexer
 {
-    private IEnumerable<ParsedFilePath> _files;
+    private readonly FileHandleManager _fileHandleManager;
+    private readonly List<(BaseFileHandle, string, string?, string)> _files;
 
-    public GameFileIndexer()
+    public GameFileIndexer(FileHandleManager fileHandleManager)
     {
-        _files = Enumerable.Empty<ParsedFilePath>();
+        _fileHandleManager = fileHandleManager;
+        _files = new List<(BaseFileHandle, string, string?, string)>();
     }
 
     public void LoadFromDataPath(string dataPath)
@@ -49,17 +51,37 @@ public class GameFileIndexer : IGameFileIndexer
         }
 
         // Process the files
-        _files = allFiles
-            .SelectMany(file =>
+        _files.AddRange(allFiles
+            .Select(file =>
             {
                 var (p, s, r, f) = file;
+
+                // Currently only processing ICE files; will add more once this works
+                var handle = _fileHandleManager.CreateHandle<IceV4File>(p, false);
+                return ((BaseFileHandle)handle, s, r, f);
+            }));
+    }
+
+    public IEnumerable<ParsedFilePath> ListFiles()
+    {
+        return _files
+            .SelectMany(file =>
+            {
+                var (h, s, r, f) = file;
                 
                 // Currently only processing ICE files; will add more once this works
-                var handle = new FileHandle<IceV4File>(p);
-                handle.LoadHeadersOnly();
-                
-                if (handle.State == BaseFileHandle.FileState.Loaded)
+                if (h is FileHandle<IceV4File> handle)
                 {
+                    while (h.State != BaseFileHandle.FileState.Loaded)
+                    {
+                        if (h.State == BaseFileHandle.FileState.Error)
+                        {
+                            return Enumerable.Empty<ParsedFilePath?>();
+                        }
+                        
+                        Thread.Yield();
+                    }
+                    
                     var ice = handle.Value!;
                     return ice.Group1Entries
                         .Select(entry => ParsedFilePath.ParseFilePath($"{s}/{(r != null ? r + '/' : "")}{f}/{entry.Header.FileName}"))
@@ -71,10 +93,5 @@ public class GameFileIndexer : IGameFileIndexer
             })
             .Where(path => path is not null)
             .Select(path => path!);
-    }
-
-    public IEnumerable<ParsedFilePath> ListFiles()
-    {
-        return _files;
     }
 }

@@ -2,18 +2,41 @@
 
 namespace PhotonBlue.Data;
 
-public class FileHandleManager
+public class FileHandleManager : IDisposable
 {
     private readonly ConcurrentQueue<(bool, WeakReference<BaseFileHandle>)> _fileQueue;
 
-    internal FileHandleManager()
+    private readonly CancellationTokenSource? _tokenSource;
+    private readonly Thread? _loadThread;
+
+    public FileHandleManager(bool processQueueInternally)
     {
         _fileQueue = new ConcurrentQueue<(bool, WeakReference<BaseFileHandle>)>();
+
+        if (processQueueInternally)
+        {
+            _tokenSource = new CancellationTokenSource();
+            _loadThread = new Thread(() =>
+            {
+                while (!_tokenSource.IsCancellationRequested)
+                {
+                    if (HasPendingFileLoads)
+                    {
+                        ProcessQueue(_tokenSource.Token);
+                    }
+                    else
+                    {
+                        Thread.Yield();
+                    }
+                }
+            });
+            _loadThread.Start();
+        }
     }
 
     /// <summary>
-    /// Creates a new handle to a game file but does not load it. You will need to call <see cref="ProcessQueue"/> or the wrapper function
-    /// <see cref="GameData.ProcessFileHandleQueue"/>  yourself for these handles to be loaded, on a different thread.
+    /// Creates a new handle to a game file but does not load it. You will need to call <see cref="ProcessQueue"/>
+    /// yourself for these handles to be loaded on a different thread.
     /// </summary>
     /// <param name="path">The path to the file to load.</param>
     /// <param name="loadComplete">Whether or not to load the complete file when processing the queue.</param>
@@ -31,9 +54,9 @@ public class FileHandleManager
     /// <summary>
     /// Processes enqueued file handles that haven't been loaded yet. You should call this on a different thread to process handles.
     /// </summary>
-    public void ProcessQueue()
+    public void ProcessQueue(CancellationToken cancellationToken = default)
     {
-        while (HasPendingFileLoads)
+        while (!cancellationToken.IsCancellationRequested && HasPendingFileLoads)
         {
             var res = _fileQueue.TryDequeue(out var entry);
             var (loadComplete, weakRef) = entry;
@@ -55,4 +78,11 @@ public class FileHandleManager
     /// Whether the file queue contains any files that are yet to be loaded.
     /// </summary>
     public bool HasPendingFileLoads => !_fileQueue.IsEmpty;
+
+    public void Dispose()
+    {
+        _tokenSource?.Cancel();
+        _loadThread?.Join();
+        GC.SuppressFinalize(this);
+    }
 }

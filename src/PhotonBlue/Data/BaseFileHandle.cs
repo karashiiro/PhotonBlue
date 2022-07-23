@@ -16,6 +16,7 @@ public abstract class BaseFileHandle
     }
 
     public FileState State { get; protected set; } = FileState.None;
+    public Exception? LoadException { get; protected set; }
     protected readonly string Path;
     protected object? Instance;
 

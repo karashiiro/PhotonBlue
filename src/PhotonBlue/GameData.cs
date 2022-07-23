@@ -2,20 +2,22 @@
 
 namespace PhotonBlue;
 
-public class GameData
+public class GameData : IDisposable
 {
     /// <summary>
     /// The current data path that Photon Blue is using to load files.
     /// </summary>
     public DirectoryInfo DataPath { get; }
+    
+    public IGameFileIndexer Index { get; }
 
     /// <summary>
     /// Provides access to the <see cref="FileHandleManager"/> which allows you to create new <see cref="FileHandle{T}"/>s which then allows you to
     /// easily defer file loading onto another thread.
     /// </summary>
-    public FileHandleManager FileHandleManager { get; }
+    private FileHandleManager FileHandleManager { get; }
 
-    public GameData(string pso2BinPath)
+    public GameData(string pso2BinPath, bool processFileLoadsInternally = true)
     {
         DataPath = new DirectoryInfo(pso2BinPath);
 
@@ -29,7 +31,8 @@ public class GameData
             throw new ArgumentException("DataPath must point to the pso2_bin directory.", nameof(pso2BinPath));
         }
 
-        FileHandleManager = new FileHandleManager();
+        FileHandleManager = new FileHandleManager(processFileLoadsInternally);
+        Index = new GameFileIndexer(FileHandleManager);
     }
 
     /// <summary>
@@ -85,22 +88,21 @@ public class GameData
     }
 
     /// <summary>
-    /// Creates a new handle to a game file but does not load it. You will need to call <see cref="ProcessFileHandleQueue"/> yourself for these handles
-    /// to be loaded, on a different thread.
+    /// Creates a file handle using the file handle manager. The manager's queue must be processed
+    /// for the file to be loaded.
     /// </summary>
-    /// <param name="path">The path to the file to load</param>
-    /// <typeparam name="T">The type of <see cref="FileResource"/> to load</typeparam>
-    /// <returns>A handle to the file to be loaded</returns>
-    public FileHandle<T> GetFileHandle<T>(string path) where T : FileResource, new()
+    /// <param name="path"></param>
+    /// <param name="loadComplete"></param>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
+    public FileHandle<T> GetFileHandle<T>(string path, bool loadComplete = true) where T : FileResource, new()
     {
-        return FileHandleManager.CreateHandle<T>(path);
+        return FileHandleManager.CreateHandle<T>(path, loadComplete);
     }
 
-    /// <summary>
-    /// Processes enqueued file handles that haven't been loaded yet. Call this on a different thread to process handles.
-    /// </summary>
-    public void ProcessFileHandleQueue()
+    public void Dispose()
     {
-        FileHandleManager.ProcessQueue();
+        FileHandleManager.Dispose();
+        GC.SuppressFinalize(this);
     }
 }
