@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 
 namespace PhotonBlue.Cryptography;
 
-public class Blowfish
+internal sealed class Blowfish
 {
     #region P-Array and S-Boxes
 
@@ -242,26 +242,37 @@ public class Blowfish
         return buffer;
     }
 
-    public void DecryptStandard(ref byte[] data)
+    public void DecryptStandard(Span<byte> data)
     {
         for (var i = 0; i < data.Length; i += 8)
         {
-            var (l, r) = Decrypt(BitConverter.ToUInt32(data.AsSpan(i, 4)), BitConverter.ToUInt32(data.AsSpan(i + 4)));
+            var lx = ToUInt32(data.Slice(i, 4));
+            var rx = ToUInt32(data.Slice(i + 4, 4));
+            var (l, r) = Decrypt(lx, rx);
             Unsafe.As<byte, uint>(ref data[i]) = l;
             Unsafe.As<byte, uint>(ref data[i + 4]) = r;
         }
     }
 
-    public void Decrypt(ref byte[] data)
+    public void Decrypt(Span<byte> data)
     {
         // SEGA seems to have rolled their own Blowfish implementation which ignores
         // the last (8 - data.Length % 8) bytes.
         for (var i = 0; i + 7 < data.Length; i += 8)
         {
-            var (l, r) = Decrypt(BitConverter.ToUInt32(data.AsSpan(i, 4)), BitConverter.ToUInt32(data.AsSpan(i + 4)));
+            var lx = ToUInt32(data.Slice(i, 4));
+            var rx = ToUInt32(data.Slice(i + 4, 4));
+            var (l, r) = Decrypt(lx, rx);
             Unsafe.As<byte, uint>(ref data[i]) = l;
             Unsafe.As<byte, uint>(ref data[i + 4]) = r;
         }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static uint ToUInt32(ReadOnlySpan<byte> data)
+    {
+        // This is just BitConverter.ToUInt32, but without its length check.
+        return Unsafe.ReadUnaligned<uint>(ref MemoryMarshal.GetReference(data));
     }
     
     private ref uint GetPBoxElementRef(nint index)

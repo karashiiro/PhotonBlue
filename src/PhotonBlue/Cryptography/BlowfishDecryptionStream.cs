@@ -2,7 +2,7 @@
 
 namespace PhotonBlue.Cryptography;
 
-public class BlowfishDecryptionStream : Stream
+internal sealed class BlowfishDecryptionStream : Stream
 {
     public override bool CanRead => _stream.CanRead;
     public override bool CanSeek => true;
@@ -85,13 +85,13 @@ public class BlowfishDecryptionStream : Stream
             // Standard Blowfish needs its payloads to be a multiple of 8 bytes long.
             // When we're reading data before the end of the payload, we follow standard
             // Blowfish conventions.
-            _blowfish.DecryptStandard(ref readBuf);
+            _blowfish.DecryptStandard(readBuf);
         }
         else
         {
             // If we're reading data at the end of the payload, we degrade to SEGA's
             // broken Blowfish implementation, which ignores the last few bytes.
-            _blowfish.Decrypt(ref readBuf);
+            _blowfish.Decrypt(readBuf);
         }
 
         // Copy the decrypted data to the appropriate arrays.
@@ -137,7 +137,7 @@ public class BlowfishDecryptionStream : Stream
         _holdStart = 0;
         _holdEnd = nRead;
 
-        _blowfish.DecryptStandard(ref _hold);
+        _blowfish.DecryptStandard(_hold);
 
         // Return the next decrypted byte, if possible.
         if (HoldCount != 0)
