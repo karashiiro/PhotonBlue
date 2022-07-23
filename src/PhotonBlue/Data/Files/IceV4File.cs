@@ -38,6 +38,14 @@ public class IceV4File : IceFile
     public IList<FileEntry> Group2Entries { get; private set; }
 
     private BlowfishKeys _keys;
+    
+    public IceV4File()
+    {
+        _keys = new BlowfishKeys();
+        
+        Group1Entries = Array.Empty<FileEntry>();
+        Group2Entries = Array.Empty<FileEntry>();
+    }
 
     public IceV4File(Stream data) : base(data)
     {
@@ -64,7 +72,7 @@ public class IceV4File : IceFile
         LoadFileEntries(partitionedStream);
     }
 
-    public void LoadFileHeadersOnly()
+    public override void LoadHeadersOnly()
     {
         LoadHeaders();
 

@@ -117,6 +117,10 @@ public class IceFile : FileResource
     }
 
     public FileHeader Header { get; private set; }
+    
+    protected IceFile()
+    {
+    }
 
     protected IceFile(Stream data) : base(data)
     {

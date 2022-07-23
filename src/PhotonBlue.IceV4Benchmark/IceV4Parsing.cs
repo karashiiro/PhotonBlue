@@ -51,7 +51,7 @@ public class IceV4Parsing
     {
         using var mem = new MemoryStream(_encryptedKrakenData);
         var ice = new IceV4File(mem);
-        ice.LoadFileHeadersOnly();
+        ice.LoadHeadersOnly();
         return ice;
     }
     
@@ -69,7 +69,7 @@ public class IceV4Parsing
     {
         using var mem = new MemoryStream(_encryptedPrsData);
         var ice = new IceV4File(mem);
-        ice.LoadFileHeadersOnly();
+        ice.LoadHeadersOnly();
         return ice;
     }
     
@@ -87,7 +87,7 @@ public class IceV4Parsing
     {
         using var mem = new MemoryStream(_krakenData);
         var ice = new IceV4File(mem);
-        ice.LoadFileHeadersOnly();
+        ice.LoadHeadersOnly();
         return ice;
     }
     
@@ -105,7 +105,7 @@ public class IceV4Parsing
     {
         using var mem = new MemoryStream(_prsData);
         var ice = new IceV4File(mem);
-        ice.LoadFileHeadersOnly();
+        ice.LoadHeadersOnly();
         return ice;
     }
 }

@@ -155,7 +155,7 @@ public class IceV4FileTests
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\0002c97e93075ec680d89801fa640912");
         var ice = new IceV4File(data);
-        ice.LoadFileHeadersOnly();
+        ice.LoadHeadersOnly();
         
         Assert.Equal(0, ice.Group1Entries.Count);
         Assert.Equal(1, ice.Group2Entries.Count);
@@ -202,7 +202,7 @@ public class IceV4FileTests
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\00150669267df8e4fdfd58cda0c1b9a0");
         var ice = new IceV4File(data);
-        ice.LoadFileHeadersOnly();
+        ice.LoadHeadersOnly();
 
         Assert.Equal(1, ice.Group1Entries.Count);
         Assert.Equal(37, ice.Group2Entries.Count);
@@ -230,7 +230,7 @@ public class IceV4FileTests
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\000f4dde50137d18a3f595863423a93c");
         var ice = new IceV4File(data);
-        ice.LoadFileHeadersOnly();
+        ice.LoadHeadersOnly();
 
         Assert.Equal(1, ice.Group1Entries.Count);
         Assert.Equal(0, ice.Group2Entries.Count);
@@ -261,7 +261,7 @@ public class IceV4FileTests
     {
         using var data = File.OpenRead(@"..\..\..\..\..\testdata\0006b03a4c2763ffcd7d4547f71600dd");
         var ice = new IceV4File(data);
-        ice.LoadFileHeadersOnly();
+        ice.LoadHeadersOnly();
         
         Assert.Equal(0, ice.Group1Entries.Count);
         Assert.Equal(2, ice.Group2Entries.Count);

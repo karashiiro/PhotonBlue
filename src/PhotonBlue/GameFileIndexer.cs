@@ -55,23 +55,13 @@ public class GameFileIndexer : IGameFileIndexer
             {
                 var (p, s, r, f) = file;
                 
-                using var handle = File.OpenRead(p);
-                if (handle.Length < 4)
-                {
-                    return Enumerable.Empty<ParsedFilePath?>();
-                }
-
-                using var reader = new BinaryReader(handle);
-
                 // Currently only processing ICE files; will add more once this works
-                var magic = reader.ReadBytes(4);
-                var magicStr = Encoding.UTF8.GetString(magic).TrimEnd('\u0000');
-                if (magicStr == "ICE")
+                var handle = new FileHandle<IceV4File>(p);
+                handle.LoadHeadersOnly();
+                
+                if (handle.State == BaseFileHandle.FileState.Loaded)
                 {
-                    reader.BaseStream.Seek(0, SeekOrigin.Begin);
-                    using var ice = new IceV4File(reader.BaseStream);
-                    ice.LoadFileHeadersOnly();
-
+                    var ice = handle.Value!;
                     return ice.Group1Entries
                         .Select(entry => ParsedFilePath.ParseFilePath($"{s}/{(r != null ? r + '/' : "")}{f}/{entry.Header.FileName}"))
                         .Concat(ice.Group2Entries

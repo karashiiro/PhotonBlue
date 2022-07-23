@@ -1,27 +1,29 @@
 ﻿namespace PhotonBlue.Data;
 
-public abstract class FileResource : IDisposable
+public abstract class FileResource
 {
-    protected BinaryReader Reader { get; }
+    internal Stream? BaseStream { get; set; }
+    internal BinaryReader? Reader { get; set; }
+
+    protected FileResource()
+    {
+    }
 
     protected FileResource(Stream data)
     {
+        BaseStream = data;
         Reader = new BinaryReader(data);
     }
 
     public abstract void LoadFile();
 
-    protected void Dispose(bool disposing)
+    /// <summary>
+    /// Loads the file's headers, without loading any nonessential data.
+    /// This may not be meaningfully implemented for some files.
+    /// </summary>
+    /// <exception cref="NotSupportedException"></exception>
+    public virtual void LoadHeadersOnly()
     {
-        if (disposing)
-        {
-            Reader.Dispose();
-        }
-    }
-
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
+        throw new NotSupportedException();
     }
 }
