@@ -17,37 +17,11 @@ public class FileHandleManager : IDisposable
         if (processQueueInternally)
         {
             _tokenSource = new CancellationTokenSource();
-            
-            _loadThread1 = new Thread(() =>
-            {
-                while (!_tokenSource.IsCancellationRequested)
-                {
-                    if (HasPendingFileLoads)
-                    {
-                        ProcessQueue(_tokenSource.Token);
-                    }
-                    else
-                    {
-                        Thread.Sleep(1);
-                    }
-                }
-            });
+
+            _loadThread1 = new Thread(LoadThreadBody);
             _loadThread1.Start();
-            
-            _loadThread2 = new Thread(() =>
-            {
-                while (!_tokenSource.IsCancellationRequested)
-                {
-                    if (HasPendingFileLoads)
-                    {
-                        ProcessQueue(_tokenSource.Token);
-                    }
-                    else
-                    {
-                        Thread.Sleep(1);
-                    }
-                }
-            });
+
+            _loadThread2 = new Thread(LoadThreadBody);
             _loadThread2.Start();
         }
     }
@@ -88,6 +62,21 @@ public class FileHandleManager : IDisposable
                 {
                     handle.LoadHeadersOnly();
                 }
+            }
+        }
+    }
+
+    private void LoadThreadBody()
+    {
+        while (!_tokenSource!.IsCancellationRequested)
+        {
+            if (HasPendingFileLoads)
+            {
+                ProcessQueue(_tokenSource.Token);
+            }
+            else
+            {
+                Thread.Sleep(1);
             }
         }
     }
