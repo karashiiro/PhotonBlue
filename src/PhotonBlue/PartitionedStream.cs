@@ -61,6 +61,11 @@ public class PartitionedStream : Stream
 
     public override int Read(byte[] buffer, int offset, int count)
     {
+        if (count == 0)
+        {
+            return 0;
+        }
+        
         var toRead = Math.Min(count, _partitionLength - _partitionPosition);
         var nRead = _stream.Read(buffer, offset, Convert.ToInt32(toRead));
         _partitionPosition += nRead;

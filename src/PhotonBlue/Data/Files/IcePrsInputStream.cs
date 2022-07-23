@@ -22,6 +22,11 @@ public class IcePrsInputStream : Stream
 
     public override int Read(byte[] buffer, int offset, int count)
     {
+        if (count == 0)
+        {
+            return 0;
+        }
+        
         var n = _stream.Read(buffer, offset, count);
         for (var i = offset; i < offset + count; i++)
         {
