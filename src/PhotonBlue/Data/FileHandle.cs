@@ -16,27 +16,8 @@ public class FileHandle<T> : BaseFileHandle where T : FileResource, new()
 
         try
         {
-            var file = new T();
             using var data = File.OpenRead(Path);
-            file.BaseStream = data;
-            file.Reader = new BinaryReader(data);
-
-            var magicAttr = typeof(T).GetCustomAttribute<MagicAttribute>();
-            if (magicAttr != null)
-            {
-                var magic = file.Reader.ReadBytes(4);
-                var magicStr = Encoding.UTF8.GetString(magic).TrimEnd('\u0000');
-                if (magicStr == magicAttr.Magic)
-                {
-                    file.BaseStream.Seek(0, SeekOrigin.Begin);
-                }
-                else
-                {
-                    throw new InvalidOperationException(
-                        $"Invalid file magic: Expected {magicAttr.Magic}, got {magicStr}.");
-                }
-            }
-
+            var file = FileResource.FromStream<T>(data);
             file.LoadFile();
 
             State = FileState.Loaded;
@@ -54,27 +35,8 @@ public class FileHandle<T> : BaseFileHandle where T : FileResource, new()
 
         try
         {
-            var file = new T();
             using var data = File.OpenRead(Path);
-            file.BaseStream = data;
-            file.Reader = new BinaryReader(data);
-
-            var magicAttr = typeof(T).GetCustomAttribute<MagicAttribute>();
-            if (magicAttr != null)
-            {
-                var magic = file.Reader.ReadBytes(4);
-                var magicStr = Encoding.UTF8.GetString(magic).TrimEnd('\u0000');
-                if (magicStr == magicAttr.Magic)
-                {
-                    file.BaseStream.Seek(0, SeekOrigin.Begin);
-                }
-                else
-                {
-                    throw new InvalidOperationException(
-                        $"Invalid file magic: Expected {magicAttr.Magic}, got {magicStr}.");
-                }
-            }
-
+            var file = FileResource.FromStream<T>(data);
             file.LoadHeadersOnly();
 
             State = FileState.Loaded;

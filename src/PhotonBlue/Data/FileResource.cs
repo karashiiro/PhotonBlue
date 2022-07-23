@@ -1,4 +1,8 @@
-﻿namespace PhotonBlue.Data;
+﻿using System.Reflection;
+using System.Text;
+using PhotonBlue.Attributes;
+
+namespace PhotonBlue.Data;
 
 public abstract class FileResource
 {
@@ -25,5 +29,32 @@ public abstract class FileResource
     public virtual void LoadHeadersOnly()
     {
         throw new NotSupportedException();
+    }
+
+    public static T FromStream<T>(Stream data) where T : FileResource, new()
+    {
+        var file = new T
+        {
+            BaseStream = data,
+            Reader = new BinaryReader(data),
+        };
+
+        var magicAttr = typeof(T).GetCustomAttribute<MagicAttribute>();
+        if (magicAttr != null)
+        {
+            var magic = file.Reader.ReadBytes(4);
+            var magicStr = Encoding.UTF8.GetString(magic).TrimEnd('\u0000');
+            if (magicStr == magicAttr.Magic)
+            {
+                file.BaseStream.Seek(0, SeekOrigin.Begin);
+            }
+            else
+            {
+                throw new InvalidOperationException(
+                    $"Invalid file magic: Expected {magicAttr.Magic}, got {magicStr}.");
+            }
+        }
+
+        return file;
     }
 }

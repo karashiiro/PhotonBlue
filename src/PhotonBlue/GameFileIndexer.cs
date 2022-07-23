@@ -1,5 +1,4 @@
-﻿using System.Text;
-using PhotonBlue.Data;
+﻿using PhotonBlue.Data;
 using PhotonBlue.Data.Files;
 
 namespace PhotonBlue;
@@ -27,7 +26,7 @@ public class GameFileIndexer : IGameFileIndexer
         if (!subdirectories.Contains("win32") && !subdirectories.Contains("win32reboot"))
         {
             throw new ArgumentException(
-                $"Invalid game data path provided; expected pso2_bin!",
+                "Invalid game data path provided; expected pso2_bin!",
                 nameof(dataPath));
         }
 
