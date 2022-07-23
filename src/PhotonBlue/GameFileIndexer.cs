@@ -21,13 +21,13 @@ public class GameFileIndexer : IGameFileIndexer
         }
 
         // Require at least one of the two resource folders to be present
-        var subdirectories = Directory.GetDirectories(dataPath)
+        var subdirectories = Directory.GetDirectories(Path.Join(dataPath, "data"))
             .Select(path => new DirectoryInfo(path).Name)
             .ToArray();
         if (!subdirectories.Contains("win32") && !subdirectories.Contains("win32reboot"))
         {
             throw new ArgumentException(
-                $"Invalid game data path provided; expected pso2_bin{Path.DirectorySeparatorChar}data!",
+                $"Invalid game data path provided; expected pso2_bin!",
                 nameof(dataPath));
         }
 
