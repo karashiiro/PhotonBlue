@@ -9,7 +9,7 @@ public class FileHandleManager : IDisposable
     private readonly CancellationTokenSource? _tokenSource;
     private readonly Thread[] _loadThreads;
 
-    public FileHandleManager(bool processQueueInternally)
+    internal FileHandleManager(bool processQueueInternally)
     {
         _fileQueue = new ConcurrentQueue<(bool, WeakReference<BaseFileHandle>)>();
 

@@ -1,4 +1,6 @@
-﻿namespace PhotonBlue.Data;
+﻿using System.IO.MemoryMappedFiles;
+
+namespace PhotonBlue.Data;
 
 public class FileHandle<T> : BaseFileHandle where T : FileResource, new()
 {
@@ -8,14 +10,14 @@ public class FileHandle<T> : BaseFileHandle where T : FileResource, new()
 
     public override void Load()
     {
-        State = FileState.Loading;
-        LoadException = null;
-
+        BeginLoad();
         try
         {
-            using var data = new FileStream(Path, FileMode.Open, FileAccess.Read, FileShare.Read, 4096,
-                FileOptions.SequentialScan);
-            var file = FileResource.FromStream<T>(data);
+            using var mmf =
+                MemoryMappedFile.CreateFromFile(Path, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
+            using var data = mmf.CreateViewStream(0, 0, MemoryMappedFileAccess.Read);
+            using var buffer = new BufferedStream(data);
+            var file = FileResource.FromStream<T>(buffer);
             file.LoadFile();
 
             State = FileState.Loaded;
@@ -23,29 +25,41 @@ public class FileHandle<T> : BaseFileHandle where T : FileResource, new()
         }
         catch (Exception e)
         {
-            LoadException = e;
-            State = FileState.Error;
+            HandleException(e);
         }
     }
 
     public override void LoadHeadersOnly()
     {
-        State = FileState.Loading;
-
+        BeginLoad();
         try
         {
-            using var data = new FileStream(Path, FileMode.Open, FileAccess.Read, FileShare.Read, 4096,
-                FileOptions.SequentialScan);
-            var file = FileResource.FromStream<T>(data);
+            using var mmf =
+                MemoryMappedFile.CreateFromFile(Path, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
+            using var data = mmf.CreateViewStream(0, 0, MemoryMappedFileAccess.Read);
+            using var buffer = new BufferedStream(data);
+            var file = FileResource.FromStream<T>(buffer);
             file.LoadHeadersOnly();
 
             State = FileState.Loaded;
             Instance = file;
         }
-        catch
+        catch (Exception e)
         {
-            State = FileState.Error;
+            HandleException(e);
         }
+    }
+
+    private void BeginLoad()
+    {
+        State = FileState.Loading;
+        LoadException = null;
+    }
+
+    private void HandleException(Exception e)
+    {
+        LoadException = e;
+        State = FileState.Error;
     }
 
     /// <summary>
