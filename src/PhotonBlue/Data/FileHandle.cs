@@ -13,7 +13,8 @@ public class FileHandle<T> : BaseFileHandle where T : FileResource, new()
 
         try
         {
-            using var data = File.OpenRead(Path);
+            using var data = new FileStream(Path, FileMode.Open, FileAccess.Read, FileShare.Read, 4096,
+                FileOptions.SequentialScan);
             var file = FileResource.FromStream<T>(data);
             file.LoadFile();
 
@@ -33,7 +34,8 @@ public class FileHandle<T> : BaseFileHandle where T : FileResource, new()
 
         try
         {
-            using var data = File.OpenRead(Path);
+            using var data = new FileStream(Path, FileMode.Open, FileAccess.Read, FileShare.Read, 4096,
+                FileOptions.SequentialScan);
             var file = FileResource.FromStream<T>(data);
             file.LoadHeadersOnly();
 
