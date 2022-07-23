@@ -54,11 +54,19 @@ public class IceFile : FileResource
     {
         public FileEntryHeader Header { get; }
         public byte[] Data { get; }
+        
+        public FileEntry(FileEntryHeader header)
+        {
+            Header = header;
+            Data = Array.Empty<byte>();
+        }
 
         public FileEntry(FileEntryHeader header, byte[] data)
         {
             Header = header;
             Data = data;
+            
+            Debug.Assert(header.DataSize == data.Length, "File size mismatch.");
         }
     }
 
@@ -95,6 +103,7 @@ public class IceFile : FileResource
             Debug.Assert(header.HeaderSize % 16 == 0, "Invalid header size detected.");
             Debug.Assert(header.EntrySize > 0x40, "File size mismatch detected.");
             Debug.Assert(header.HeaderSize > 0x40, "Header size mismatch detected.");
+            Debug.Assert(header.FileNameLength < header.HeaderSize, "Unexpected file name length detected.");
 
             // This does not read the null terminator. The seek handles that appropriately.
             header.FileNameRaw = reader.ReadBytes(Convert.ToInt32(header.FileNameLength));
@@ -102,7 +111,6 @@ public class IceFile : FileResource
             // The name area size is a multiple of 0x10, but the name length can be less than that.
             // We need to seek to the end of the region to read the next block correctly.
             reader.Seek(0x10 - header.FileNameLength % 0x10, SeekOrigin.Current);
-            Debug.Assert(header.FileNameLength < header.HeaderSize, "Unexpected file name length detected.");
 
             return header;
         }

@@ -14,7 +14,7 @@ public class PrsStream : Stream
             int bufferCount)
         {
             var toRead = Math.Min(bufferCount, Size - BytesRead);
-            var copyTarget = new Span<byte>(buffer, bufferIndex, toRead);
+            var copyTarget = buffer.AsSpan(bufferIndex, toRead);
             for (var i = 0; i < copyTarget.Length; i++)
             {
                 // Read data from the lookaround buffer.
@@ -185,7 +185,7 @@ public class PrsStream : Stream
 
             // Copy a run from the lookaround buffer into the output buffer.
             var toRead = Math.Min(controlSize, endIndex - outIndex);
-            var copyTarget = new Span<byte>(buffer, outIndex, toRead);
+            var copyTarget = buffer.AsSpan(outIndex, toRead);
             for (var i = 0; i < copyTarget.Length; i++)
             {
                 // Read data from the lookaround buffer.
@@ -216,17 +216,17 @@ public class PrsStream : Stream
     public override long Seek(long offset, SeekOrigin origin)
     {
         // This is a poor implementation, but it correctly manages the lookaround buffer's state.
-        var absoluteOffset = origin switch
+        var restrictedOffset = origin switch
         {
-            SeekOrigin.Begin => offset,
-            SeekOrigin.Current => offset + _stream.Position,
-            SeekOrigin.End => offset + _stream.Length,
+            SeekOrigin.Begin => throw new NotSupportedException(),
+            SeekOrigin.Current => offset,
+            SeekOrigin.End => throw new NotSupportedException(),
             _ => throw new ArgumentOutOfRangeException(nameof(origin), origin, null),
         };
 
-        Debug.Assert(absoluteOffset >= _stream.Position, "This stream does not support seeking to consumed data.");
+        Debug.Assert(restrictedOffset >= 0, "This stream does not support seeking to consumed data.");
 
-        var count = Convert.ToInt32(absoluteOffset - _stream.Position);
+        var count = Convert.ToInt32(restrictedOffset);
         var outIndex = 0;
         if (_currentInstruction != null)
         {
@@ -243,7 +243,7 @@ public class PrsStream : Stream
 
             if (outIndex == count)
             {
-                return outIndex - offset;
+                return outIndex;
             }
         }
 
@@ -306,12 +306,13 @@ public class PrsStream : Stream
 
             var toRead = Math.Min(controlSize, count - outIndex);
             _bytesRead += toRead;
-            for (var index = 0; index < toRead; ++index)
+            outIndex += toRead;
+            
+            for (var index = 0; index < toRead; index++)
             {
                 _lookaround[_lookaroundIndex++] = _lookaround[loadIndex++];
                 loadIndex %= _lookaround.Length;
                 _lookaroundIndex %= _lookaround.Length;
-                outIndex++;
             }
 
             if (toRead != controlSize)
@@ -324,7 +325,7 @@ public class PrsStream : Stream
                 "Bytes read and lookaround index are not synced.");
         }
 
-        return _stream.Position + outIndex - offset;
+        return outIndex;
     }
 
     public override void SetLength(long value)
@@ -350,8 +351,17 @@ public class PrsStream : Stream
 
     private int GetNextByte()
     {
+        var initialPos = _stream.Position;
         var next = _stream.ReadByte();
         Debug.Assert(next != -1, "Unexpected end of stream.");
+        Debug.Assert(_stream.Position == initialPos + 1, "Unexpected end of stream.");
         return next;
+    }
+
+    private void SeekNextByte()
+    {
+        var initialPos = _stream.Position;
+        var pos = _stream.Seek(1, SeekOrigin.Current);
+        Debug.Assert(pos == initialPos + 1, "Unexpected end of stream.");
     }
 }

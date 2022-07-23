@@ -35,7 +35,7 @@ public class FloatageFish
     public static void DecryptBlock(byte[] dataBlock, int offset, int length, uint blowfishKey, int shift)
     {
         var xorByte = CalculateKey(blowfishKey, shift);
-        var block = new Span<byte>(dataBlock, offset, length);
+        var block = dataBlock.AsSpan(offset, length);
         for (var i = 0; i < block.Length; i++)
         {
             if (block[i] != 0 && block[i] != xorByte)
@@ -48,7 +48,7 @@ public class FloatageFish
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void DecryptBlockWithKey(byte[] dataBlock, int offset, int length, byte key)
     {
-        var block = new Span<byte>(dataBlock, offset, length);
+        var block = dataBlock.AsSpan(offset, length);
         for (var i = 0; i < block.Length; i++)
         {
             if (block[i] != 0 && block[i] != key)

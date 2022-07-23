@@ -69,6 +69,11 @@ public class PartitionedStream : Stream
 
     public override int ReadByte()
     {
+        if (_partitionPosition == _partitionLength)
+        {
+            return -1;
+        }
+        
         _partitionPosition++;
         return _stream.ReadByte();
     }

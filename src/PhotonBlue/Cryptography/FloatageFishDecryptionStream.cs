@@ -43,7 +43,8 @@ public class FloatageFishDecryptionStream : Stream
     
     public override int ReadByte()
     {
-        return FloatageFish.DecryptByteWithKey((byte)_stream.ReadByte(), _key);
+        var next = _stream.ReadByte();
+        return next == -1 ? next : FloatageFish.DecryptByteWithKey((byte)next, _key);
     }
 
     public override long Seek(long offset, SeekOrigin origin)

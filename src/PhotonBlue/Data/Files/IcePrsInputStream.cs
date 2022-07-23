@@ -33,7 +33,8 @@ public class IcePrsInputStream : Stream
 
     public override int ReadByte()
     {
-        return _stream.ReadByte() ^ 149;
+        var next = _stream.ReadByte();
+        return next == -1 ? next : next ^ 149;
     }
 
     public override long Seek(long offset, SeekOrigin origin)

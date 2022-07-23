@@ -56,7 +56,7 @@ public class BlowfishDecryptionStream : Stream
         if (HoldCount != 0)
         {
             var nCopied = Math.Min(HoldCount, count);
-            LoadHeldBytes(buffer, offset, nCopied);
+            LoadHeldBytes(buffer.AsSpan(offset, nCopied));
             outIndex += nCopied;
             nLeft -= nCopied;
         }
@@ -101,34 +101,13 @@ public class BlowfishDecryptionStream : Stream
         outIndex += toCopy;
         if (toHold > 0)
         {
-            HoldBytes(readBuf, nLeft, toHold);
+            HoldBytes(readBuf.AsSpan(nLeft, toHold));
         }
 
         // We lie about the returned number of bytes and only inform the consumer that
         // we have read up to the requested amount of data. In reality, we may have
         // read more than that and stored it in our internal buffer.
         return Math.Min(outIndex - offset, count);
-    }
-
-    private void LoadHeldBytes(byte[] buffer, int offset, int count)
-    {
-        Debug.Assert(count > 0, "Tried to read negative amount of bytes from the hold buffer.");
-        Debug.Assert(HoldCount - count >= 0, "Hold buffer does not contain enough elements to support this operation.");
-        Array.Copy(_hold, _holdStart, buffer, offset, count);
-        _holdStart += count;
-    }
-
-    private void HoldBytes(byte[] data, int offset, int count)
-    {
-        Debug.Assert(HoldCount == 0, "Hold buffer still contains unread data.");
-        Debug.Assert(count > 0, "Tried to store negative amount of bytes in the hold buffer.");
-        Debug.Assert(count <= 8, "Hold buffer would be larger than 8 bytes after this operation.");
-
-        // Clobber any data currently in the hold buffer since this will never be called
-        // while the hold buffer still has data.
-        Array.Copy(data, offset, _hold, 0, count);
-        _holdStart = 0;
-        _holdEnd = count;
     }
 
     public override int ReadByte()
@@ -160,8 +139,13 @@ public class BlowfishDecryptionStream : Stream
 
         _blowfish.DecryptStandard(ref _hold);
 
-        // Return the next decrypted byte.
-        return _hold[_holdStart++];
+        // Return the next decrypted byte, if possible.
+        if (HoldCount != 0)
+        {
+            return _hold[_holdStart++];
+        }
+
+        return -1;
     }
 
     public override long Seek(long offset, SeekOrigin origin)
@@ -175,17 +159,16 @@ public class BlowfishDecryptionStream : Stream
         };
 
         var count = absoluteOffset - Position;
-        if (count >= HoldCount)
-        {
-            count -= HoldCount;
-            _holdStart = 0;
-            _holdEnd = 0;
-        }
+        Span<byte> junk1 = stackalloc byte[Math.Min(HoldCount, Convert.ToInt32(count))];
+        count -= HoldCount;
+        LoadHeldBytes(junk1);
 
-        if (count == 0)
+        if (count <= 0)
         {
             return Position;
         }
+        
+        Debug.Assert(HoldCount == 0, "Hold buffer still contains unread data.");
         
         var alignedCount = count - count % 8;
         _stream.Seek(alignedCount, SeekOrigin.Current);
@@ -193,9 +176,10 @@ public class BlowfishDecryptionStream : Stream
         {
             return Position;
         }
-        
-        var buf = new byte[count - alignedCount];
-        return Position + Read(buf, 0, buf.Length);
+
+        // This will be at most 16 bytes long.
+        Span<byte> junk2 = stackalloc byte[Convert.ToInt32(count - alignedCount)];
+        return Position + Read(junk2);
     }
 
     public override void SetLength(long value)
@@ -206,5 +190,24 @@ public class BlowfishDecryptionStream : Stream
     public override void Write(byte[] buffer, int offset, int count)
     {
         throw new NotSupportedException();
+    }
+    
+    private void LoadHeldBytes(Span<byte> buffer)
+    {
+        Debug.Assert(HoldCount - buffer.Length >= 0, "Hold buffer does not contain enough elements to support this operation.");
+        _hold.AsSpan(_holdStart, buffer.Length).CopyTo(buffer);
+        _holdStart += buffer.Length;
+    }
+
+    private void HoldBytes(Span<byte> buffer)
+    {
+        Debug.Assert(HoldCount == 0, "Hold buffer still contains unread data.");
+        Debug.Assert(buffer.Length <= 8, "Hold buffer would be larger than 8 bytes after this operation.");
+
+        // Clobber any data currently in the hold buffer since this will never be called
+        // while the hold buffer still has data.
+        buffer.CopyTo(_hold.AsSpan(0, buffer.Length));
+        _holdStart = 0;
+        _holdEnd = buffer.Length;
     }
 }
