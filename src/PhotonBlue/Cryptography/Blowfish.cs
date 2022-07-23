@@ -255,7 +255,7 @@ public class Blowfish
     public void Decrypt(ref byte[] data)
     {
         // SEGA seems to have rolled their own Blowfish implementation which ignores
-        // the last (8 - data.Length % 8) bytes. This is as dumb as it is unsurprising.
+        // the last (8 - data.Length % 8) bytes.
         for (var i = 0; i + 7 < data.Length; i += 8)
         {
             var (l, r) = Decrypt(BitConverter.ToUInt32(data.AsSpan(i, 4)), BitConverter.ToUInt32(data.AsSpan(i + 4)));
