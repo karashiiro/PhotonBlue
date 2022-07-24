@@ -61,9 +61,8 @@ public class IcePrsInputStream : Stream
 
     public override long Seek(long offset, SeekOrigin origin)
     {
-        var nSeek = _stream.Seek(offset, origin);
-        _position += nSeek;
-        return nSeek;
+        _position = _stream.Seek(offset, origin);
+        return _position;
     }
 
     public override void SetLength(long value)
