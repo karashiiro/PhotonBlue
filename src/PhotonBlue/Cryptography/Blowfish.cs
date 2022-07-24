@@ -244,11 +244,14 @@ internal sealed class Blowfish
 
     public void DecryptStandard(Span<byte> data)
     {
+        Span<uint> pCopy = stackalloc uint[18];
+        p.CopyTo(pCopy);
+        
         for (var i = 0; i < data.Length; i += 8)
         {
             var lx = ToUInt32(data.Slice(i, 4));
             var rx = ToUInt32(data.Slice(i + 4, 4));
-            var (l, r) = Decrypt(lx, rx);
+            var (l, r) = Decrypt(pCopy, lx, rx);
             Unsafe.As<byte, uint>(ref data[i]) = l;
             Unsafe.As<byte, uint>(ref data[i + 4]) = r;
         }
@@ -256,13 +259,16 @@ internal sealed class Blowfish
 
     public void Decrypt(Span<byte> data)
     {
+        Span<uint> pCopy = stackalloc uint[18];
+        p.CopyTo(pCopy);
+        
         // SEGA seems to have rolled their own Blowfish implementation which ignores
         // the last (8 - data.Length % 8) bytes.
         for (var i = 0; i + 7 < data.Length; i += 8)
         {
             var lx = ToUInt32(data.Slice(i, 4));
             var rx = ToUInt32(data.Slice(i + 4, 4));
-            var (l, r) = Decrypt(lx, rx);
+            var (l, r) = Decrypt(pCopy, lx, rx);
             Unsafe.As<byte, uint>(ref data[i]) = l;
             Unsafe.As<byte, uint>(ref data[i + 4]) = r;
         }
@@ -311,17 +317,17 @@ internal sealed class Blowfish
         return (r ^ GetPBoxElementRef(17), l ^ GetPBoxElementRef(16));
     }
 
-    private (uint, uint) Decrypt(uint l, uint r)
+    private (uint, uint) Decrypt(ReadOnlySpan<uint> pCopy, uint l, uint r)
     {
         for (var i = Rounds; i > 0; i -= 2)
         {
-            l ^= GetPBoxElementRef(i + 1);
+            l ^= pCopy[i + 1];
             r ^= F(l);
-            r ^= GetPBoxElementRef(i);
+            r ^= pCopy[i];
             l ^= F(r);
         }
 
-        return (r ^ GetPBoxElementRef(0), l ^ GetPBoxElementRef(1));
+        return (r ^ pCopy[0], l ^ pCopy[1]);
     }
 
     private static IEnumerable<TSource> Cycle<TSource>(IEnumerable<TSource> source)
