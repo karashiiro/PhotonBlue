@@ -275,12 +275,14 @@ internal sealed class Blowfish
         return Unsafe.ReadUnaligned<uint>(ref MemoryMarshal.GetReference(data));
     }
     
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private ref uint GetPBoxElementRef(nint index)
     {
         ref var data = ref MemoryMarshal.GetArrayDataReference(p);
         return ref Unsafe.Add(ref data, index);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private ref uint GetSBoxElementRef(nuint outer, nuint inner)
     {
         ref var sp = ref MemoryMarshal.GetArrayDataReference(s);
