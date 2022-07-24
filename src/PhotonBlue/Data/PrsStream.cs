@@ -49,28 +49,11 @@ public class PrsStream : Stream
         }
     }
 
-    private abstract class PrsInstruction
+    private enum PrsInstruction
     {
-    }
-    
-    private class PrsEof : PrsInstruction
-    {
-    }
-    
-    private class PrsLiteral : PrsInstruction
-    {
-    }
-
-    private class PrsPointer : PrsInstruction
-    {
-        public int Offset { get; }
-        public int Size { get; }
-
-        public PrsPointer(int offset, int size)
-        {
-            Offset = offset;
-            Size = size;
-        }
+        Eof,
+        Literal,
+        Pointer,
     }
 
     private const int MinLongCopyLength = 10;
@@ -153,9 +136,9 @@ public class PrsStream : Stream
             var inst = GetNextInstruction();
             switch (inst)
             {
-                case PrsEof:
+                case (PrsInstruction.Eof, _, _):
                     return outIndex - offset;
-                case PrsLiteral:
+                case (PrsInstruction.Literal, _, _):
                     // Raw data read
                     buffer[outIndex] = (byte)GetNextByte();
 
@@ -166,11 +149,12 @@ public class PrsStream : Stream
                     _lookaroundIndex %= _lookaround.Length;
                     _bytesRead++;
                     break;
-                case PrsPointer ptr:
+                case (PrsInstruction.Pointer, _, _) ptr:
                 {
-                    var toRead = Math.Min(ptr.Size, endIndex - outIndex);
+                    var (_, prsOffset, prsSize) = ptr;
+                    var toRead = Math.Min(prsSize, endIndex - outIndex);
                     var copyTarget = buffer.AsSpan(outIndex, toRead);
-                    ReadPointer(ptr, copyTarget, toRead);
+                    ReadPointer(prsOffset, prsSize, copyTarget, toRead);
                     outIndex += toRead;
                     break;
                 }
@@ -219,9 +203,9 @@ public class PrsStream : Stream
             var inst = GetNextInstruction();
             switch (inst)
             {
-                case PrsEof:
+                case (PrsInstruction.Eof, _, _):
                     return outIndex - offset;
-                case PrsLiteral:
+                case (PrsInstruction.Literal, _, _):
                     // The big question: how can you safely skip this byte read?
                     // Data can be carried from the very beginning of the stream, all the way
                     // to the end of the decompressed data, so it's difficult to determine when
@@ -233,10 +217,11 @@ public class PrsStream : Stream
                     _bytesRead++;
                     outIndex++;
                     break;
-                case PrsPointer ptr:
+                case (PrsInstruction.Pointer, _, _) ptr:
                 {
-                    var toSeek = Math.Min(ptr.Size, count - outIndex);
-                    SeekPointer(ptr, toSeek);
+                    var (_, prsOffset, prsSize) = ptr;
+                    var toSeek = Math.Min(prsSize, count - outIndex);
+                    SeekPointer(prsOffset, prsSize, toSeek);
                     outIndex += toSeek;
                     break;
                 }
@@ -256,13 +241,13 @@ public class PrsStream : Stream
         throw new NotImplementedException();
     }
 
-    private void ReadPointer(PrsPointer ptr, Span<byte> buffer, int toRead)
+    private void ReadPointer(int offset, int size, Span<byte> buffer, int toRead)
     {
-        Debug.Assert(ptr.Offset != 0 && _bytesRead >= -ptr.Offset, "Bad copy instruction detected.");
+        Debug.Assert(offset != 0 && _bytesRead >= -offset, "Bad copy instruction detected.");
         
         _bytesRead += toRead;
 
-        var loadIndex = (_lookaroundIndex + ptr.Offset) % _lookaround.Length;
+        var loadIndex = (_lookaroundIndex + offset) % _lookaround.Length;
         if (loadIndex < 0)
         {
             loadIndex += _lookaround.Length;
@@ -280,23 +265,23 @@ public class PrsStream : Stream
             _lookaroundIndex %= _lookaround.Length;
         }
             
-        if (toRead != ptr.Size)
+        if (toRead != size)
         {
             // Store the current PRS instruction so we can resume it on the next read.
-            _currentInstruction = new PrsPointerState { LoadIndex = loadIndex, Size = ptr.Size, BytesRead = toRead };
+            _currentInstruction = new PrsPointerState { LoadIndex = loadIndex, Size = size, BytesRead = toRead };
         }
 
         Debug.Assert(_bytesRead % _lookaround.Length == _lookaroundIndex,
             "Bytes read and lookaround index are not synced.");
     }
 
-    private void SeekPointer(PrsPointer ptr, int toSeek)
+    private void SeekPointer(int offset, int size, int toSeek)
     {
-        Debug.Assert(ptr.Offset != 0 && _bytesRead >= -ptr.Offset, "Bad copy instruction detected.");
+        Debug.Assert(offset != 0 && _bytesRead >= -offset, "Bad copy instruction detected.");
         
         _bytesRead += toSeek;
                 
-        var loadIndex = (_lookaroundIndex + ptr.Offset) % _lookaround.Length;
+        var loadIndex = (_lookaroundIndex +offset) % _lookaround.Length;
         if (loadIndex < 0)
         {
             loadIndex += _lookaround.Length;
@@ -309,10 +294,10 @@ public class PrsStream : Stream
             _lookaroundIndex %= _lookaround.Length;
         }
 
-        if (toSeek != ptr.Size)
+        if (toSeek != size)
         {
             // Store the current PRS instruction so we can resume it on the next read.
-            _currentInstruction = new PrsPointerState { LoadIndex = loadIndex, Size = ptr.Size, BytesRead = toSeek };
+            _currentInstruction = new PrsPointerState { LoadIndex = loadIndex, Size = size, BytesRead = toSeek };
         }
 
         Debug.Assert(_bytesRead % _lookaround.Length == _lookaroundIndex,
@@ -322,11 +307,11 @@ public class PrsStream : Stream
     /// <summary>
     /// Reads the next decompression instruction from the stream.
     /// </summary>
-    private PrsInstruction GetNextInstruction()
+    private (PrsInstruction, int, int) GetNextInstruction()
     {
         if (GetControlBit())
         {
-            return new PrsLiteral();
+            return (PrsInstruction.Literal, 0, 0);
         }
 
         if (GetControlBit())
@@ -335,18 +320,18 @@ public class PrsStream : Stream
             var data1 = GetNextByte();
             if (ReadEof(data0, data1))
             {
-                return new PrsEof();
+                return (PrsInstruction.Eof, 0, 0);
             }
 
             // Long search; long size or long search; short size
             var (offset, size) = ReadLongRun(data0, data1);
-            return new PrsPointer(offset, size);
+            return (PrsInstruction.Pointer, offset, size);
         }
         else
         {
             // Short search; short size
             var (offset, size) = ReadShortRun();
-            return new PrsPointer(offset, size);
+            return (PrsInstruction.Pointer, offset, size);
         }
     }
 
