@@ -357,11 +357,4 @@ public class PrsStream : Stream
         Debug.Assert(_stream.Position == initialPos + 1, "Unexpected end of stream.");
         return next;
     }
-
-    private void SeekNextByte()
-    {
-        var initialPos = _stream.Position;
-        var pos = _stream.Seek(1, SeekOrigin.Current);
-        Debug.Assert(pos == initialPos + 1, "Unexpected end of stream.");
-    }
 }
