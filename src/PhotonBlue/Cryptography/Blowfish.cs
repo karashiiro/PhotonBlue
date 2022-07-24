@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 // ReSharper disable ForCanBeConvertedToForeach
@@ -246,14 +247,11 @@ internal sealed class Blowfish
     {
         Span<uint> pCopy = stackalloc uint[18];
         p.CopyTo(pCopy);
-        
+
         for (var i = 0; i < data.Length; i += 8)
         {
-            var lx = ToUInt32(data.Slice(i, 4));
-            var rx = ToUInt32(data.Slice(i + 4, 4));
-            var (l, r) = Decrypt(pCopy, lx, rx);
-            Unsafe.As<byte, uint>(ref data[i]) = l;
-            Unsafe.As<byte, uint>(ref data[i + 4]) = r;
+            var x = Decrypt(pCopy, ToUInt64(data.Slice(i, 8)));
+            Unsafe.As<byte, ulong>(ref data[i]) = x;
         }
     }
 
@@ -266,19 +264,16 @@ internal sealed class Blowfish
         // the last (8 - data.Length % 8) bytes.
         for (var i = 0; i + 7 < data.Length; i += 8)
         {
-            var lx = ToUInt32(data.Slice(i, 4));
-            var rx = ToUInt32(data.Slice(i + 4, 4));
-            var (l, r) = Decrypt(pCopy, lx, rx);
-            Unsafe.As<byte, uint>(ref data[i]) = l;
-            Unsafe.As<byte, uint>(ref data[i + 4]) = r;
+            var x = Decrypt(pCopy, ToUInt64(data.Slice(i, 8)));
+            Unsafe.As<byte, ulong>(ref data[i]) = x;
         }
     }
-
+    
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static uint ToUInt32(ReadOnlySpan<byte> data)
+    private static ulong ToUInt64(ReadOnlySpan<byte> data)
     {
-        // This is just BitConverter.ToUInt32, but without its length check.
-        return Unsafe.ReadUnaligned<uint>(ref MemoryMarshal.GetReference(data));
+        // This is just BitConverter.ToUInt64, but without its length check.
+        return Unsafe.ReadUnaligned<ulong>(ref MemoryMarshal.GetReference(data));
     }
     
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -303,6 +298,14 @@ internal sealed class Blowfish
         return ((GetSBoxElementRef(0, x >> 24) + GetSBoxElementRef(1, (x >> 16) & 0xFF)) ^
                 GetSBoxElementRef(2, (x >> 8) & 0xFF)) + GetSBoxElementRef(3, x & 0xFF);
     }
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private ulong Fu64(uint x)
+    {
+        // This variant returns a ulong to avoid some integer width adjustment ops later
+        return ((GetSBoxElementRef(0, x >> 24) + GetSBoxElementRef(1, (x >> 16) & 0xFF)) ^
+                GetSBoxElementRef(2, (x >> 8) & 0xFF)) + GetSBoxElementRef(3, x & 0xFF);
+    }
 
     private (uint, uint) Encrypt(uint l, uint r)
     {
@@ -317,17 +320,23 @@ internal sealed class Blowfish
         return (r ^ GetPBoxElementRef(17), l ^ GetPBoxElementRef(16));
     }
 
-    private (uint, uint) Decrypt(ReadOnlySpan<uint> pCopy, uint l, uint r)
+    private ulong Decrypt(Span<uint> pCopy, ulong x)
     {
+        // Swap the low and high halves of x
+        x = BitOperations.RotateRight(x, 32);
+        
         for (var i = Rounds; i > 0; i -= 2)
         {
-            l ^= pCopy[i + 1];
-            r ^= F(l);
-            r ^= pCopy[i];
-            l ^= F(r);
+            // Parallel XOR
+            x ^= Unsafe.As<uint, ulong>(ref pCopy[i]);
+            
+            // XOR the low and high halves of x separately
+            x ^= Fu64((uint)(x >> 32));
+            x ^= Fu64((uint)x) << 32;
         }
 
-        return (r ^ pCopy[0], l ^ pCopy[1]);
+        // Parallel XOR
+        return x ^ Unsafe.As<uint, ulong>(ref pCopy[0]);
     }
 
     private static IEnumerable<TSource> Cycle<TSource>(IEnumerable<TSource> source)
