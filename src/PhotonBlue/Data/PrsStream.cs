@@ -218,6 +218,12 @@ public class PrsStream : Stream
                 case PrsEof:
                     return outIndex - offset;
                 case PrsLiteral:
+                    // The big question: how can you safely skip this byte read?
+                    // Data can be carried from the very beginning of the stream, all the way
+                    // to the end of the decompressed data, so it's difficult to determine when
+                    // a skip can or can't be done. Skipping byte reads should give a huge performance
+                    // gain, since that would skip Blowfish decryption in the underlying stream as well.
+                    // Currently, this function is the bottleneck for the entire indexing process.
                     _lookaround[_lookaroundIndex++] = (byte)GetNextByte();
                     _lookaroundIndex %= _lookaround.Length;
                     _bytesRead++;
