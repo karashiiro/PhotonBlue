@@ -4,7 +4,8 @@ namespace PhotonBlue.Data;
 
 // Is this actually a variant of LZSS, and not LZ77? The implementation looks
 // much more similar to that than to LZ77, but with some small tweaks to how
-// EOF, offset, and size are calculated.
+// EOF, offset, and size are calculated. LZSS is itself a variant of LZ77, of
+// course, but it's more useful to be specific.
 public class PrsStream : Stream
 {
     private class PrsPointerState
