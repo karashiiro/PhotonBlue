@@ -207,7 +207,7 @@ internal sealed class Blowfish
 
     #endregion
 
-    private static readonly int Rounds = 16;
+    private const int Rounds = 16;
 
     /// <summary>
     /// Initialize a new blowfish.
@@ -248,9 +248,10 @@ internal sealed class Blowfish
         Span<uint> pCopy = stackalloc uint[18];
         p.CopyTo(pCopy);
 
+        ref var p0 = ref Unsafe.As<uint, ulong>(ref pCopy[0]);
         for (var i = 0; i < data.Length; i += 8)
         {
-            var x = Decrypt(pCopy, ToUInt64(data.Slice(i, 8)));
+            var x = Decrypt(ref p0, ToUInt64(data.Slice(i, 8)));
             Unsafe.As<byte, ulong>(ref data[i]) = x;
         }
     }
@@ -262,9 +263,10 @@ internal sealed class Blowfish
         
         // SEGA seems to have rolled their own Blowfish implementation which ignores
         // the last (8 - data.Length % 8) bytes.
+        ref var p0 = ref Unsafe.As<uint, ulong>(ref pCopy[0]);
         for (var i = 0; i + 7 < data.Length; i += 8)
         {
-            var x = Decrypt(pCopy, ToUInt64(data.Slice(i, 8)));
+            var x = Decrypt(ref p0, ToUInt64(data.Slice(i, 8)));
             Unsafe.As<byte, ulong>(ref data[i]) = x;
         }
     }
@@ -320,15 +322,15 @@ internal sealed class Blowfish
         return (r ^ GetPBoxElementRef(17), l ^ GetPBoxElementRef(16));
     }
 
-    private ulong Decrypt(Span<uint> pCopy, ulong x)
+    private ulong Decrypt(ref ulong p0, ulong x)
     {
         // Swap the low and high halves of x
         x = BitOperations.RotateRight(x, 32);
         
-        for (var i = Rounds; i > 0; i -= 2)
+        for (var i = Rounds / 2; i > 0; i--)
         {
             // Parallel XOR
-            x ^= Unsafe.As<uint, ulong>(ref pCopy[i]);
+            x ^= Unsafe.Add(ref p0, i);
             
             // XOR the low and high halves of x separately
             x ^= Fu64((uint)(x >> 32));
@@ -336,7 +338,7 @@ internal sealed class Blowfish
         }
 
         // Parallel XOR
-        return x ^ Unsafe.As<uint, ulong>(ref pCopy[0]);
+        return x ^ p0;
     }
 
     private static IEnumerable<TSource> Cycle<TSource>(IEnumerable<TSource> source)
