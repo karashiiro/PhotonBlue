@@ -298,10 +298,10 @@ internal sealed class Blowfish
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private uint F(uint i)
+    private uint F(uint x)
     {
-        return ((GetSBoxElementRef(0, i >> 24) + GetSBoxElementRef(1, (i >> 16) & 0xFF)) ^
-                GetSBoxElementRef(2, (i >> 8) & 0xFF)) + GetSBoxElementRef(3, i & 0xFF);
+        return ((GetSBoxElementRef(0, x >> 24) + GetSBoxElementRef(1, (x >> 16) & 0xFF)) ^
+                GetSBoxElementRef(2, (x >> 8) & 0xFF)) + GetSBoxElementRef(3, x & 0xFF);
     }
 
     private (uint, uint) Encrypt(uint l, uint r)
