@@ -129,7 +129,7 @@ internal sealed class BlowfishDecryptionStream : Stream
         // If the underlying data is not a multiple of 8 bytes long and in the
         // remainder bytes, then just return data without decrypting it. This
         // is an artifact of SEGA's interesting Blowfish implementation.
-        if (_stream.Length % 8 != 0 && _length - _position < 8)
+        if (_length % 8 != 0 && _length - _position < 8)
         {
             _position++;
             return _stream.ReadByte();
