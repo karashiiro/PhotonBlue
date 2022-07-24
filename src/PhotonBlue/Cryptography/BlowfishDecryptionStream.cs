@@ -7,11 +7,12 @@ internal sealed class BlowfishDecryptionStream : Stream
     public override bool CanRead => _stream.CanRead;
     public override bool CanSeek => true;
     public override bool CanWrite => false;
-    public override long Length => _stream.Length;
-
+    
+    // ReSharper disable once ConvertToAutoPropertyWithPrivateSetter
+    public override long Length => _length;
     public override long Position
     {
-        get => _stream.Position - HoldCount;
+        get => _position - HoldCount;
         set => throw new NotSupportedException();
     }
 
@@ -20,12 +21,15 @@ internal sealed class BlowfishDecryptionStream : Stream
     // An internal buffer for holding decrypted data that the consumer
     // doesn't want to read, yet. Because Blowfish decrypts blocks 8 bytes
     // at a time, this will never be larger than 8 bytes.
-    private byte[] _hold;
+    private readonly byte[] _hold;
     private int _holdStart;
     private int _holdEnd;
 
     private readonly Blowfish _blowfish;
     private readonly Stream _stream;
+
+    private long _length;
+    private long _position;
 
     public BlowfishDecryptionStream(Stream data, IEnumerable<byte> key)
     {
@@ -35,6 +39,9 @@ internal sealed class BlowfishDecryptionStream : Stream
         
         _blowfish = new Blowfish(key);
         _stream = data;
+
+        _length = data.Length;
+        _position = data.Position;
     }
 
     public override void Flush()
@@ -70,9 +77,10 @@ internal sealed class BlowfishDecryptionStream : Stream
         // Create a padded buffer that can hold a multiple of 8 bytes for decryption, and
         // fill it with data. If this would read more data than the amount of remaining data,
         // then just read all of the remaining data.
-        var nToRead = Convert.ToInt32(Math.Min(nLeft + (8 - nLeft % 8), _stream.Length - _stream.Position));
+        var nToRead = Convert.ToInt32(Math.Min(nLeft + (8 - nLeft % 8), _length - _position));
         var readBuf = new byte[nToRead]; // Not sure how to avoid this allocation
         var nRead = _stream.Read(readBuf, 0, nToRead);
+        _position += nRead;
 
         // No data remaining; return early.
         if (nRead == 0)
@@ -80,7 +88,7 @@ internal sealed class BlowfishDecryptionStream : Stream
             return outIndex - offset;
         }
 
-        if (_stream.Length % 8 == 0 || _stream.Length - _stream.Position >= 8)
+        if (_length % 8 == 0 || _length - _position >= 8)
         {
             // Standard Blowfish needs its payloads to be a multiple of 8 bytes long.
             // When we're reading data before the end of the payload, we follow standard
@@ -121,8 +129,9 @@ internal sealed class BlowfishDecryptionStream : Stream
         // If the underlying data is not a multiple of 8 bytes long and in the
         // remainder bytes, then just return data without decrypting it. This
         // is an artifact of SEGA's interesting Blowfish implementation.
-        if (_stream.Length % 8 != 0 && _stream.Length - _stream.Position < 8)
+        if (_stream.Length % 8 != 0 && _length - _position < 8)
         {
+            _position++;
             return _stream.ReadByte();
         }
 
@@ -132,6 +141,7 @@ internal sealed class BlowfishDecryptionStream : Stream
         // know that this is not the end of the file, so we don't need to handle
         // the buffer being only partially filled.
         var nRead = _stream.Read(_hold, 0, _hold.Length);
+        _position += nRead;
         Debug.Assert(nRead == _hold.Length, "Unexpected end of stream.");
 
         _holdStart = 0;
@@ -154,7 +164,7 @@ internal sealed class BlowfishDecryptionStream : Stream
         {
             SeekOrigin.Begin => offset,
             SeekOrigin.Current => offset + Position,
-            SeekOrigin.End => Length - offset,
+            SeekOrigin.End => _length - offset,
             _ => throw new ArgumentOutOfRangeException(nameof(origin), origin, null),
         };
 
@@ -179,12 +189,16 @@ internal sealed class BlowfishDecryptionStream : Stream
 
         // This will be at most 16 bytes long.
         Span<byte> junk2 = stackalloc byte[Convert.ToInt32(count - alignedCount)];
-        return Position + Read(junk2);
+        var nRead = Read(junk2);
+        Debug.Assert(nRead == junk2.Length, "Unexpected end of stream.");
+        
+        return Position;
     }
 
     public override void SetLength(long value)
     {
-        throw new NotSupportedException();
+        _stream.SetLength(value);
+        _length = value;
     }
 
     public override void Write(byte[] buffer, int offset, int count)

@@ -5,14 +5,29 @@ public class IcePrsInputStream : Stream
     public override bool CanRead => _stream.CanRead;
     public override bool CanSeek => _stream.CanSeek;
     public override bool CanWrite => _stream.CanWrite;
-    public override long Length => _stream.Length;
-    public override long Position { get => _stream.Position; set => _stream.Position = value; }
+    
+    public override long Length => _length;
+    public override long Position
+    {
+        get => _position;
+        set
+        {
+            _stream.Position = value;
+            _position = value;
+        }
+    }
 
     private readonly Stream _stream;
+
+    private long _length;
+    private long _position;
     
     public IcePrsInputStream(Stream data)
     {
         _stream = data;
+        
+        _length = data.Length;
+        _position = data.Position;
     }
     
     public override void Flush()
@@ -27,29 +42,34 @@ public class IcePrsInputStream : Stream
             return 0;
         }
         
-        var n = _stream.Read(buffer, offset, count);
+        var nRead = _stream.Read(buffer, offset, count);
         for (var i = offset; i < offset + count; i++)
         {
             buffer[i] ^= 149;
         }
         
-        return n;
+        _position += nRead;
+        return nRead;
     }
 
     public override int ReadByte()
     {
         var next = _stream.ReadByte();
+        _position++;
         return next == -1 ? next : next ^ 149;
     }
 
     public override long Seek(long offset, SeekOrigin origin)
     {
-        return _stream.Seek(offset, origin);
+        var nSeek = _stream.Seek(offset, origin);
+        _position += nSeek;
+        return nSeek;
     }
 
     public override void SetLength(long value)
     {
         _stream.SetLength(value);
+        _length = value;
     }
 
     public override void Write(byte[] buffer, int offset, int count)
