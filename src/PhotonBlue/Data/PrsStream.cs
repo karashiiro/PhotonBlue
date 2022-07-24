@@ -4,7 +4,7 @@ namespace PhotonBlue.Data;
 
 public class PrsStream : Stream
 {
-    private class PrsPointer
+    private class PrsPointerState
     {
         public int LoadIndex { get; set; }
         public int BytesRead { get; set; }
@@ -45,6 +45,30 @@ public class PrsStream : Stream
         }
     }
 
+    private abstract class PrsInstruction
+    {
+    }
+    
+    private class PrsEof : PrsInstruction
+    {
+    }
+    
+    private class PrsLiteral : PrsInstruction
+    {
+    }
+
+    private class PrsPointer : PrsInstruction
+    {
+        public int Offset { get; }
+        public int Size { get; }
+
+        public PrsPointer(int offset, int size)
+        {
+            Offset = offset;
+            Size = size;
+        }
+    }
+
     private const int MinLongCopyLength = 10;
 
     public override bool CanRead => true;
@@ -71,7 +95,7 @@ public class PrsStream : Stream
     private int _bytesRead;
 
     // An object used for tracking interrupted instructions.
-    private PrsPointer? _currentInstruction;
+    private PrsPointerState? _currentInstruction;
 
     private readonly Stream _stream;
 
@@ -122,92 +146,31 @@ public class PrsStream : Stream
 
         while (outIndex < endIndex)
         {
-            if (GetControlBit())
+            var inst = GetNextInstruction();
+            switch (inst)
             {
-                // Raw data read
-                buffer[outIndex] = (byte)GetNextByte();
+                case PrsEof:
+                    return outIndex - offset;
+                case PrsLiteral:
+                    // Raw data read
+                    buffer[outIndex] = (byte)GetNextByte();
 
-                // Every byte that is read to the output buffer also needs to be read into
-                // the lookaround. This allows for incremental decompression, which is important
-                // for minimizing the amount of work done during file indexing.
-                _lookaround[_lookaroundIndex++] = buffer[outIndex++];
-                _lookaroundIndex %= _lookaround.Length;
-                _bytesRead++;
-
-                continue;
-            }
-
-            int controlOffset;
-            int controlSize;
-            if (GetControlBit())
-            {
-                var data0 = GetNextByte();
-                var data1 = GetNextByte();
-                if (data0 == 0 && data1 == 0)
+                    // Every byte that is read to the output buffer also needs to be read into
+                    // the lookaround. This allows for incremental decompression, which is important
+                    // for minimizing the amount of work done during file indexing.
+                    _lookaround[_lookaroundIndex++] = buffer[outIndex++];
+                    _lookaroundIndex %= _lookaround.Length;
+                    _bytesRead++;
+                    break;
+                case PrsPointer ptr:
                 {
-                    // EOF
+                    var toRead = Math.Min(ptr.Size, endIndex - outIndex);
+                    var copyTarget = buffer.AsSpan(outIndex, toRead);
+                    ReadPointer(ptr, copyTarget, toRead);
+                    outIndex += toRead;
                     break;
                 }
-
-                controlOffset = (data1 << 5) + (data0 >> 3) - 8192;
-                controlSize = data0 & 0b00000111;
-
-                if (controlSize == 0)
-                {
-                    // Long search; long size
-                    controlSize = GetNextByte() + MinLongCopyLength;
-                }
-                else
-                {
-                    // Long search; short size
-                    controlSize += 2;
-                }
             }
-            else
-            {
-                // Short search; short size
-                controlSize = 2;
-                if (GetControlBit())
-                    controlSize += 2;
-                if (GetControlBit())
-                    ++controlSize;
-
-                controlOffset = GetNextByte() - 256;
-            }
-
-            Debug.Assert(controlOffset != 0 && _bytesRead >= -controlOffset, "Bad copy instruction detected.");
-            
-            var loadIndex = (_lookaroundIndex + controlOffset) % _lookaround.Length;
-            if (loadIndex < 0)
-            {
-                loadIndex += _lookaround.Length;
-            }
-
-            // Copy a run from the lookaround buffer into the output buffer.
-            var toRead = Math.Min(controlSize, endIndex - outIndex);
-            var copyTarget = buffer.AsSpan(outIndex, toRead);
-            for (var i = 0; i < copyTarget.Length; i++)
-            {
-                // Read data from the lookaround buffer.
-                copyTarget[i] = _lookaround[loadIndex];
-
-                // Read through to the lookaround buffer.
-                _lookaround[_lookaroundIndex++] = _lookaround[loadIndex++];
-                loadIndex %= _lookaround.Length;
-                _lookaroundIndex %= _lookaround.Length;
-            }
-            
-            outIndex += toRead;
-            _bytesRead += toRead;
-
-            if (toRead != controlSize)
-            {
-                // Store the current PRS instruction so we can resume it on the next read.
-                _currentInstruction = new PrsPointer { LoadIndex = loadIndex, Size = controlSize, BytesRead = toRead };
-            }
-
-            Debug.Assert(_bytesRead % _lookaround.Length == _lookaroundIndex,
-                "Bytes read and lookaround index are not synced.");
         }
 
         return outIndex - offset;
@@ -249,80 +212,25 @@ public class PrsStream : Stream
 
         while (outIndex < count)
         {
-            if (GetControlBit())
+            var inst = GetNextInstruction();
+            switch (inst)
             {
-                _lookaround[_lookaroundIndex++] = (byte)GetNextByte();
-                _lookaroundIndex %= _lookaround.Length;
-                _bytesRead++;
-                outIndex++;
-                continue;
-            }
-
-            int controlOffset;
-            int controlSize;
-            if (GetControlBit())
-            {
-                var data0 = GetNextByte();
-                var data1 = GetNextByte();
-                if (data0 == 0 && data1 == 0)
+                case PrsEof:
+                    return outIndex - offset;
+                case PrsLiteral:
+                    _lookaround[_lookaroundIndex++] = (byte)GetNextByte();
+                    _lookaroundIndex %= _lookaround.Length;
+                    _bytesRead++;
+                    outIndex++;
+                    break;
+                case PrsPointer ptr:
                 {
-                    // EOF
+                    var toSeek = Math.Min(ptr.Size, count - outIndex);
+                    SeekPointer(ptr, toSeek);
+                    outIndex += toSeek;
                     break;
                 }
-
-                controlOffset = (data1 << 5) + (data0 >> 3) - 8192;
-                controlSize = data0 & 0b00000111;
-
-                if (controlSize == 0)
-                {
-                    // Long search; long size
-                    controlSize = GetNextByte() + MinLongCopyLength;
-                }
-                else
-                {
-                    // Long search; short size
-                    controlSize += 2;
-                }
             }
-            else
-            {
-                // Short search; short size
-                controlSize = 2;
-                if (GetControlBit())
-                    controlSize += 2;
-                if (GetControlBit())
-                    ++controlSize;
-
-                controlOffset = GetNextByte() - 256;
-            }
-
-            Debug.Assert(controlOffset != 0 && _bytesRead >= -controlOffset, "Bad copy instruction detected.");
-
-            var loadIndex = (_lookaroundIndex + controlOffset) % _lookaround.Length;
-            if (loadIndex < 0)
-            {
-                loadIndex += _lookaround.Length;
-            }
-
-            var toRead = Math.Min(controlSize, count - outIndex);
-            _bytesRead += toRead;
-            outIndex += toRead;
-            
-            for (var index = 0; index < toRead; index++)
-            {
-                _lookaround[_lookaroundIndex++] = _lookaround[loadIndex++];
-                loadIndex %= _lookaround.Length;
-                _lookaroundIndex %= _lookaround.Length;
-            }
-
-            if (toRead != controlSize)
-            {
-                // Store the current PRS instruction so we can resume it on the next read.
-                _currentInstruction = new PrsPointer { LoadIndex = loadIndex, Size = controlSize, BytesRead = toRead };
-            }
-
-            Debug.Assert(_bytesRead % _lookaround.Length == _lookaroundIndex,
-                "Bytes read and lookaround index are not synced.");
         }
 
         return outIndex;
@@ -336,6 +244,159 @@ public class PrsStream : Stream
     public override void Write(byte[] buffer, int offset, int count)
     {
         throw new NotImplementedException();
+    }
+
+    private void ReadPointer(PrsPointer ptr, Span<byte> buffer, int toRead)
+    {
+        Debug.Assert(ptr.Offset != 0 && _bytesRead >= -ptr.Offset, "Bad copy instruction detected.");
+        
+        _bytesRead += toRead;
+
+        var loadIndex = (_lookaroundIndex + ptr.Offset) % _lookaround.Length;
+        if (loadIndex < 0)
+        {
+            loadIndex += _lookaround.Length;
+        }
+
+        // Copy a run from the lookaround buffer into the output buffer.
+        for (var i = 0; i < buffer.Length; i++)
+        {
+            // Read data from the lookaround buffer.
+            buffer[i] = _lookaround[loadIndex];
+
+            // Read through to the lookaround buffer.
+            _lookaround[_lookaroundIndex++] = _lookaround[loadIndex++];
+            loadIndex %= _lookaround.Length;
+            _lookaroundIndex %= _lookaround.Length;
+        }
+            
+        if (toRead != ptr.Size)
+        {
+            // Store the current PRS instruction so we can resume it on the next read.
+            _currentInstruction = new PrsPointerState { LoadIndex = loadIndex, Size = ptr.Size, BytesRead = toRead };
+        }
+
+        Debug.Assert(_bytesRead % _lookaround.Length == _lookaroundIndex,
+            "Bytes read and lookaround index are not synced.");
+    }
+
+    private void SeekPointer(PrsPointer ptr, int toSeek)
+    {
+        Debug.Assert(ptr.Offset != 0 && _bytesRead >= -ptr.Offset, "Bad copy instruction detected.");
+        
+        _bytesRead += toSeek;
+                
+        var loadIndex = (_lookaroundIndex + ptr.Offset) % _lookaround.Length;
+        if (loadIndex < 0)
+        {
+            loadIndex += _lookaround.Length;
+        }
+            
+        for (var index = 0; index < toSeek; index++)
+        {
+            _lookaround[_lookaroundIndex++] = _lookaround[loadIndex++];
+            loadIndex %= _lookaround.Length;
+            _lookaroundIndex %= _lookaround.Length;
+        }
+
+        if (toSeek != ptr.Size)
+        {
+            // Store the current PRS instruction so we can resume it on the next read.
+            _currentInstruction = new PrsPointerState { LoadIndex = loadIndex, Size = ptr.Size, BytesRead = toSeek };
+        }
+
+        Debug.Assert(_bytesRead % _lookaround.Length == _lookaroundIndex,
+            "Bytes read and lookaround index are not synced.");
+    }
+
+    /// <summary>
+    /// Reads the next decompression instruction from the stream.
+    /// </summary>
+    private PrsInstruction GetNextInstruction()
+    {
+        if (GetControlBit())
+        {
+            return new PrsLiteral();
+        }
+
+        if (GetControlBit())
+        {
+            var data0 = GetNextByte();
+            var data1 = GetNextByte();
+            if (ReadEof(data0, data1))
+            {
+                return new PrsEof();
+            }
+
+            // Long search; long size or long search; short size
+            var (offset, size) = ReadLongRun(data0, data1);
+            return new PrsPointer(offset, size);
+        }
+        else
+        {
+            // Short search; short size
+            var (offset, size) = ReadShortRun();
+            return new PrsPointer(offset, size);
+        }
+    }
+
+    /// <summary>
+    /// Reads an EOF for the current decompression stream.
+    /// </summary>
+    /// <param name="data0">The (n - 2) byte relative to the current stream position.</param>
+    /// <param name="data1">The (n - 1) byte relative to the current stream position.</param>
+    /// <returns>Whether or not stream reading should terminate.</returns>
+    private static bool ReadEof(int data0, int data1)
+    {
+        return data0 == 0 && data1 == 0;
+    }
+
+    /// <summary>
+    /// Reads the instructions for a long search, long size or a long search, short size
+    /// run copy.
+    /// </summary>
+    /// <param name="data0">The (n - 2) byte relative to the current stream position.</param>
+    /// <param name="data1">The (n - 1) byte relative to the current stream position.</param>
+    /// <returns>A tuple of (offset, size).</returns>
+    private (int, int) ReadLongRun(int data0, int data1)
+    {
+        var controlOffset = (data1 << 5) + (data0 >> 3) - 8192;
+        var controlSize = data0 & 0b00000111;
+
+        if (controlSize == 0)
+        {
+            // Long search; long size
+            controlSize = GetNextByte() + MinLongCopyLength;
+        }
+        else
+        {
+            // Long search; short size
+            controlSize += 2;
+        }
+
+        return (controlOffset, controlSize);
+    }
+
+    /// <summary>
+    /// Reads the instructions for a short search, short size run copy.
+    /// </summary>
+    /// <returns>A tuple of (offset, size).</returns>
+    private (int, int) ReadShortRun()
+    {
+        var controlSize = 2;
+        if (GetControlBit())
+        {
+            controlSize += 2;
+        }
+        
+        if (GetControlBit())
+        {
+            controlSize++;
+        }
+
+        var controlOffset = GetNextByte() - 256;
+
+        return (controlOffset, controlSize);
     }
 
     private bool GetControlBit()
