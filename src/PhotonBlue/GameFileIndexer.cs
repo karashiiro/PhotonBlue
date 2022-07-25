@@ -8,7 +8,9 @@ public class GameFileIndexer : IGameFileIndexer
     private readonly FileHandleManager _fileHandleManager;
     private readonly List<(BaseFileHandle, string, string?, string)> _files;
 
-    public int Count => _files.Count;
+    public int DiskFilesRead { get; private set; }
+    
+    public int DiskFileCount => _files.Count;
 
     public GameFileIndexer(FileHandleManager fileHandleManager)
     {
@@ -79,12 +81,14 @@ public class GameFileIndexer : IGameFileIndexer
                     {
                         if (h.State == BaseFileHandle.FileState.Error)
                         {
+                            DiskFilesRead++;
                             return Enumerable.Empty<ParsedFilePath?>();
                         }
 
                         Thread.Yield();
                     }
 
+                    DiskFilesRead++;
                     var ice = handle.Value!;
                     return ice.Group1Entries
                         .Select(entry =>
@@ -96,6 +100,7 @@ public class GameFileIndexer : IGameFileIndexer
                                     $"{s}/{(r != null ? r + '/' : "")}{f}/{entry.Header.FileName}")));
                 }
 
+                DiskFilesRead++;
                 return Enumerable.Empty<ParsedFilePath?>();
             })
             .Where(path => path is not null)

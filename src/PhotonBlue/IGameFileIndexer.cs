@@ -8,5 +8,7 @@ public interface IGameFileIndexer
     
     public IEnumerable<ParsedFilePath> ListFiles();
     
-    public int Count { get; }
+    public int DiskFilesRead { get; }
+    
+    public int DiskFileCount { get; }
 }
