@@ -28,6 +28,18 @@ public class PrsStream : Stream
                 lookaround[lookaroundOffset++] = lookaround[LoadIndex++];
                 LoadIndex %= lookaround.Count;
                 lookaroundOffset %= lookaround.Count;
+                
+                // Doing these modulus assignments every loop is much slower
+                // than doing comparisons every loop instead.
+                if (LoadIndex == lookaround.Count)
+                {
+                    LoadIndex %= lookaround.Count;
+                }
+
+                if (lookaroundOffset == lookaround.Count)
+                {
+                    lookaroundOffset %= lookaround.Count;
+                }
             }
             
             BytesRead += toRead;
@@ -41,8 +53,16 @@ public class PrsStream : Stream
             for (var i = 0; i < toRead; i++)
             {
                 lookaround[lookaroundOffset++] = lookaround[LoadIndex++];
-                LoadIndex %= lookaround.Count;
-                lookaroundOffset %= lookaround.Count;
+                
+                if (LoadIndex == lookaround.Count)
+                {
+                    LoadIndex %= lookaround.Count;
+                }
+
+                if (lookaroundOffset == lookaround.Count)
+                {
+                    lookaroundOffset %= lookaround.Count;
+                }
             }
 
             return toRead;
@@ -146,8 +166,13 @@ public class PrsStream : Stream
                     // the lookaround. This allows for incremental decompression, which is important
                     // for minimizing the amount of work done during file indexing.
                     _lookaround[_lookaroundIndex++] = buffer[outIndex++];
-                    _lookaroundIndex %= _lookaround.Length;
                     _bytesRead++;
+
+                    if (_lookaroundIndex == _lookaround.Length)
+                    {
+                        _lookaroundIndex %= _lookaround.Length;
+                    }
+                    
                     break;
                 case (PrsInstruction.Pointer, _, _) ptr:
                 {
@@ -213,9 +238,14 @@ public class PrsStream : Stream
                     // gain, since that would skip Blowfish decryption in the underlying stream as well.
                     // Currently, this function is the bottleneck for the entire indexing process.
                     _lookaround[_lookaroundIndex++] = (byte)GetNextByte();
-                    _lookaroundIndex %= _lookaround.Length;
                     _bytesRead++;
                     outIndex++;
+                    
+                    if (_lookaroundIndex == _lookaround.Length)
+                    {
+                        _lookaroundIndex %= _lookaround.Length;
+                    }
+                    
                     break;
                 case (PrsInstruction.Pointer, _, _) ptr:
                 {
@@ -261,8 +291,18 @@ public class PrsStream : Stream
 
             // Read through to the lookaround buffer.
             _lookaround[_lookaroundIndex++] = _lookaround[loadIndex++];
-            loadIndex %= _lookaround.Length;
-            _lookaroundIndex %= _lookaround.Length;
+            
+            // Doing these modulus assignments every loop is much slower
+            // than doing comparisons every loop instead.
+            if (loadIndex == _lookaround.Length)
+            {
+                loadIndex %= _lookaround.Length;
+            }
+
+            if (_lookaroundIndex == _lookaround.Length)
+            {
+                _lookaroundIndex %= _lookaround.Length;
+            }
         }
             
         if (toRead != size)
@@ -281,7 +321,7 @@ public class PrsStream : Stream
         
         _bytesRead += toSeek;
                 
-        var loadIndex = (_lookaroundIndex +offset) % _lookaround.Length;
+        var loadIndex = (_lookaroundIndex + offset) % _lookaround.Length;
         if (loadIndex < 0)
         {
             loadIndex += _lookaround.Length;
@@ -290,8 +330,16 @@ public class PrsStream : Stream
         for (var index = 0; index < toSeek; index++)
         {
             _lookaround[_lookaroundIndex++] = _lookaround[loadIndex++];
-            loadIndex %= _lookaround.Length;
-            _lookaroundIndex %= _lookaround.Length;
+
+            if (loadIndex == _lookaround.Length)
+            {
+                loadIndex %= _lookaround.Length;
+            }
+
+            if (_lookaroundIndex == _lookaround.Length)
+            {
+                _lookaroundIndex %= _lookaround.Length;
+            }
         }
 
         if (toSeek != size)
