@@ -8,6 +8,8 @@ public class GameFileIndexer : IGameFileIndexer
     private readonly FileHandleManager _fileHandleManager;
     private readonly List<(BaseFileHandle, string, string?, string)> _files;
 
+    public int Count => _files.Count;
+
     public GameFileIndexer(FileHandleManager fileHandleManager)
     {
         _fileHandleManager = fileHandleManager;
@@ -40,7 +42,8 @@ public class GameFileIndexer : IGameFileIndexer
         if (Directory.Exists(win32Path))
         {
             allFiles = allFiles.Concat(Directory.EnumerateFiles(win32Path, "", SearchOption.TopDirectoryOnly)
-                .Select<string, (string, string, string?, string)>(file => (file, "win32", null, Path.GetFileName(file))));
+                .Select<string, (string, string, string?, string)>(file =>
+                    (file, "win32", null, Path.GetFileName(file))));
         }
 
         if (Directory.Exists(win32RebootPath))
@@ -68,7 +71,7 @@ public class GameFileIndexer : IGameFileIndexer
             .SelectMany(file =>
             {
                 var (h, s, r, f) = file;
-                
+
                 // Currently only processing ICE files; will add more once this works
                 if (h is FileHandle<IceV4File> handle)
                 {
@@ -78,17 +81,21 @@ public class GameFileIndexer : IGameFileIndexer
                         {
                             return Enumerable.Empty<ParsedFilePath?>();
                         }
-                        
+
                         Thread.Yield();
                     }
-                    
+
                     var ice = handle.Value!;
                     return ice.Group1Entries
-                        .Select(entry => ParsedFilePath.ParseFilePath($"{s}/{(r != null ? r + '/' : "")}{f}/{entry.Header.FileName}"))
+                        .Select(entry =>
+                            ParsedFilePath.ParseFilePath(
+                                $"{s}/{(r != null ? r + '/' : "")}{f}/{entry.Header.FileName}"))
                         .Concat(ice.Group2Entries
-                            .Select(entry => ParsedFilePath.ParseFilePath($"{s}/{(r != null ? r + '/' : "")}{f}/{entry.Header.FileName}")));
+                            .Select(entry =>
+                                ParsedFilePath.ParseFilePath(
+                                    $"{s}/{(r != null ? r + '/' : "")}{f}/{entry.Header.FileName}")));
                 }
-                
+
                 return Enumerable.Empty<ParsedFilePath?>();
             })
             .Where(path => path is not null)

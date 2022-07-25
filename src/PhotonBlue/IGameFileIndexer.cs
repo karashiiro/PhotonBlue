@@ -7,4 +7,6 @@ public interface IGameFileIndexer
     public void LoadFromDataPath(string dataPath);
     
     public IEnumerable<ParsedFilePath> ListFiles();
+    
+    public int Count { get; }
 }
