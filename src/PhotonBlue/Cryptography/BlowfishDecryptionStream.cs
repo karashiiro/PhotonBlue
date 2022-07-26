@@ -1,6 +1,4 @@
 ﻿using System.Diagnostics;
-using System.Runtime.CompilerServices;
-using ComputeSharp;
 
 namespace PhotonBlue.Cryptography;
 
@@ -63,7 +61,7 @@ internal sealed class BlowfishDecryptionStream : Stream
         _stream.Flush();
     }
 
-    public override unsafe int Read(byte[] buffer, int offset, int count)
+    public override int Read(byte[] buffer, int offset, int count)
     {
         if (count == 0)
         {
@@ -132,7 +130,7 @@ internal sealed class BlowfishDecryptionStream : Stream
         return remainder == 0 ? nLeft : nLeft + (8 - nLeft % 8);
     }
 
-    public override unsafe int ReadByte()
+    public override int ReadByte()
     {
         // Read data from the internal buffer.
         if (HoldCount != 0)
