@@ -6,16 +6,19 @@ namespace PhotonBlue.Cryptography;
 
 public class BlowfishGpuStrategy : BlowfishStrategy
 {
+    public const int RecommendedThreshold = 65536;
+    private const int InternalCpuThreshold = 1024;
+    
     private readonly UploadBuffer<uint2> _gpuUpload;
     private readonly ReadWriteBuffer<uint2> _gpuBuffer;
     private readonly ReadBackBuffer<uint2> _gpuDownload;
+    private readonly Blowfish _blowfish;
     private readonly Blowfish.GpuHandle _boxes;
 
     public BlowfishGpuStrategy(IEnumerable<byte> key, int bufferSize)
     {
-        var blowfish = new Blowfish(key);
-        
-        _boxes = blowfish.AllocateToGraphicsDevice(GraphicsDevice.Default);
+        _blowfish = new Blowfish(key);
+        _boxes = _blowfish.AllocateToGraphicsDevice(GraphicsDevice.Default);
         _gpuBuffer = GraphicsDevice.Default.AllocateReadWriteBuffer<uint2>(bufferSize / 8);
         _gpuUpload = GraphicsDevice.Default.AllocateUploadBuffer<uint2>(bufferSize / 8);
         _gpuDownload = GraphicsDevice.Default.AllocateReadBackBuffer<uint2>(bufferSize / 8);
@@ -24,6 +27,13 @@ public class BlowfishGpuStrategy : BlowfishStrategy
     public override unsafe void Decrypt(Span<byte> data)
     {
         Debug.Assert(data.Length % 8 == 0, "Decrypt payload is not a multiple of 8 bytes long.");
+
+        if (data.Length < InternalCpuThreshold)
+        {
+            // Decrypt small blocks of data on the CPU, even though we have buffers set up already.
+            _blowfish.DecryptStandard(data);
+            return;
+        }
         
         var dataEx = new Span<uint2>(Unsafe.AsPointer(ref data[0]), data.Length / 8);
         for (var i = 0; i < dataEx.Length; i += _gpuUpload.Span.Length)
