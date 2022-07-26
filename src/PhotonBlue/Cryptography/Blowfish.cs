@@ -214,7 +214,7 @@ internal sealed class Blowfish
         public ReadOnlyBuffer<uint> S1;
         public ReadOnlyBuffer<uint> S2;
         public ReadOnlyBuffer<uint> S3;
-        public ReadOnlyBuffer<uint> P;
+        public ConstantBuffer<uint> P;
 
         public readonly void Dispose()
         {
@@ -254,7 +254,7 @@ internal sealed class Blowfish
             S1 = device.AllocateReadOnlyBuffer(s[1]),
             S2 = device.AllocateReadOnlyBuffer(s[2]),
             S3 = device.AllocateReadOnlyBuffer(s[3]),
-            P = device.AllocateReadOnlyBuffer(p),
+            P = device.AllocateConstantBuffer(p),
         };
     }
 

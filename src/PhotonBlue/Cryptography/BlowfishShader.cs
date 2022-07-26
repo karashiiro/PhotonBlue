@@ -12,7 +12,7 @@ public readonly partial struct BlowfishShader : IComputeShader
     public readonly ReadOnlyBuffer<uint> s1;
     public readonly ReadOnlyBuffer<uint> s2;
     public readonly ReadOnlyBuffer<uint> s3;
-    public readonly ReadOnlyBuffer<uint> p;
+    public readonly ConstantBuffer<uint> p;
     
     // Work buffer data is packed as a buffer of L/R pairs for simplicity.
     // The X element of the vector corresponds to the left integer in the
