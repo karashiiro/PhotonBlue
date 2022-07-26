@@ -268,6 +268,15 @@ public class PrsStream : Stream
         throw new NotImplementedException();
     }
 
+    /// <summary>
+    /// Executes a pointer instruction, reading data to an output buffer.
+    /// </summary>
+    /// <param name="offset">The offset to copy data from.</param>
+    /// <param name="size">The length of the block to copy.</param>
+    /// <param name="toSeek">
+    /// The maximum number of bytes to process. Any further bytes will be processed the next time data
+    /// is read or seeked.
+    /// </param>
     private void ReadPointer(int offset, int size, Span<byte> buffer, int toRead)
     {
         Debug.Assert(offset != 0 && _bytesRead >= -offset, "Bad copy instruction detected.");
@@ -312,6 +321,16 @@ public class PrsStream : Stream
             "Bytes read and lookaround index are not synced.");
     }
 
+    /// <summary>
+    /// Follows a pointer instruction without reading data to an output buffer. This still
+    /// copies data within the lookaround buffer.
+    /// </summary>
+    /// <param name="offset">The offset to copy data from.</param>
+    /// <param name="size">The length of the block to copy.</param>
+    /// <param name="toSeek">
+    /// The maximum number of bytes to process. Any further bytes will be processed the next time data
+    /// is read or seeked.
+    /// </param>
     private void SeekPointer(int offset, int size, int toSeek)
     {
         Debug.Assert(offset != 0 && _bytesRead >= -offset, "Bad copy instruction detected.");
@@ -439,6 +458,10 @@ public class PrsStream : Stream
         return (controlOffset, controlSize);
     }
 
+    /// <summary>
+    /// Reads the next control bit from the stream.
+    /// </summary>
+    /// <returns>The control bit value.</returns>
     private bool GetControlBit()
     {
         if (_ctrlByteCounter == 8)
@@ -450,6 +473,9 @@ public class PrsStream : Stream
         return (_ctrlByte & (1 << _ctrlByteCounter++)) > 0;
     }
 
+    /// <summary>
+    /// Returns the next byte from the stream. This is jitted out in Release mode.
+    /// </summary>
     private int GetNextByte()
     {
         var next = _stream.ReadByte();
