@@ -8,6 +8,7 @@ public class BlowfishGpuStrategy : BlowfishStrategy
 {
     private readonly UploadBuffer<uint2> _gpuUpload;
     private readonly ReadWriteBuffer<uint2> _gpuBuffer;
+    private readonly ReadBackBuffer<uint2> _gpuDownload;
     private readonly Blowfish.GpuHandle _boxes;
 
     public BlowfishGpuStrategy(IEnumerable<byte> key, int bufferSize)
@@ -17,6 +18,7 @@ public class BlowfishGpuStrategy : BlowfishStrategy
         _boxes = blowfish.AllocateToGraphicsDevice(GraphicsDevice.Default);
         _gpuBuffer = GraphicsDevice.Default.AllocateReadWriteBuffer<uint2>(bufferSize / 8);
         _gpuUpload = GraphicsDevice.Default.AllocateUploadBuffer<uint2>(bufferSize / 8);
+        _gpuDownload = GraphicsDevice.Default.AllocateReadBackBuffer<uint2>(bufferSize / 8);
     }
     
     public override unsafe void Decrypt(Span<byte> data)
@@ -26,13 +28,25 @@ public class BlowfishGpuStrategy : BlowfishStrategy
         var dataEx = new Span<uint2>(Unsafe.AsPointer(ref data[0]), data.Length / 8);
         for (var i = 0; i < dataEx.Length; i += _gpuUpload.Span.Length)
         {
+            // Calculate the length of the data to decrypt
             var len = Math.Min(_gpuUpload.Span.Length, dataEx[i..].Length);
             var dataSlice = dataEx.Slice(i, len);
+            
+            // Copy that data into the upload buffer 
             dataSlice.CopyTo(_gpuUpload.Span);
+            
+            // Copy data from the upload buffer into the work buffer
             _gpuUpload.CopyTo(_gpuBuffer);
+            
+            // Run the compute shader
             GraphicsDevice.Default.For(_gpuUpload.Span.Length, 1, 1, 8, 8, 1,
                 new BlowfishShader(_boxes.S0, _boxes.S1, _boxes.S2, _boxes.S3, _boxes.P, _gpuBuffer));
-            _gpuBuffer.CopyTo(dataSlice);
+            
+            // Copy data from the work buffer into the readback buffer
+            _gpuDownload.CopyFrom(_gpuBuffer);
+            
+            // Copy data from the readback buffer into main memory
+            _gpuDownload.Span[..len].CopyTo(dataSlice);
         }
     }
 
@@ -44,6 +58,7 @@ public class BlowfishGpuStrategy : BlowfishStrategy
         {
             _gpuUpload.Dispose();
             _gpuBuffer.Dispose();
+            _gpuDownload.Dispose();
             _boxes.Dispose();
         }
     }
