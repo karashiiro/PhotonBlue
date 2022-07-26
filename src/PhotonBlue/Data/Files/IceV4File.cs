@@ -1,4 +1,6 @@
 ﻿using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using ComputeSharp;
 using PhotonBlue.Attributes;
 using PhotonBlue.Cryptography;
 using PhotonBlue.Extensions;
@@ -23,7 +25,7 @@ public class IceV4File : IceFile
 
         public static GroupHeader Read(BinaryReader reader)
         {
-            return new()
+            return new GroupHeader
             {
                 RawSize = reader.ReadUInt32(),
                 CompressedSize = reader.ReadUInt32(),
@@ -40,11 +42,11 @@ public class IceV4File : IceFile
     public IList<FileEntry> Group2Entries { get; private set; }
 
     private BlowfishKeys _keys;
-    
+
     public IceV4File()
     {
         _keys = new BlowfishKeys();
-        
+
         Group1Entries = Array.Empty<FileEntry>();
         Group2Entries = Array.Empty<FileEntry>();
     }
@@ -52,7 +54,7 @@ public class IceV4File : IceFile
     public IceV4File(Stream data) : base(data)
     {
         _keys = new BlowfishKeys();
-        
+
         Group1Entries = Array.Empty<FileEntry>();
         Group2Entries = Array.Empty<FileEntry>();
     }
@@ -63,7 +65,7 @@ public class IceV4File : IceFile
         base.LoadFile();
         Debug.Assert(Header.Version == 4, "Incorrect ICE version detected!");
         LoadGroupHeaders();
-        
+
         Debug.Assert(Reader != null);
 
         // Set up some partitions that keep reads in the different sections of the archive
@@ -85,7 +87,7 @@ public class IceV4File : IceFile
         base.LoadHeadersOnly();
         Debug.Assert(Header.Version == 4, "Incorrect ICE version detected!");
         LoadGroupHeaders();
-        
+
         Debug.Assert(Reader != null);
 
         // Set up some partitions that keep reads in the different sections of the archive
@@ -99,17 +101,12 @@ public class IceV4File : IceFile
 
         // Extract the archive entry headers
         LoadFileEntriesHeadersOnly(partitionedStream);
-
-        if (!Header.Flags.HasFlag(IceFileFlags.Kraken))
-        {
-            Debug.Assert(Reader.BaseStream.Position != Reader.BaseStream.Length, "The entire file was read.");
-        }
     }
 
     private void LoadGroupHeaders()
     {
         Debug.Assert(Reader != null);
-        
+
         // Decrypt the file headers, if necessary
         _keys = new BlowfishKeys();
         if (Header.Flags.HasFlag(IceFileFlags.Encrypted))
@@ -132,15 +129,17 @@ public class IceV4File : IceFile
             Reader.Seek(0x10, SeekOrigin.Current);
         }
     }
-    
+
     private void LoadFileEntriesHeadersOnly(PartitionedStream partitionedStream)
     {
         var group1FileCount = Convert.ToInt32(Group1.FileCount);
         var group2FileCount = Convert.ToInt32(Group2.FileCount);
         var totalFiles = group1FileCount + group2FileCount;
-        
+
         // Extract the first group
-        var group1Stream = HandleGroupExtraction(Group1, _keys.GroupDataKeys[0], partitionedStream);
+        var (group1Stream, junk1) = HandleGroupExtraction(Group1, _keys.GroupDataKeys[0], partitionedStream);
+        using var junk1Deferred = DeferDispose(junk1);
+        
         Group1Entries = UnpackGroupHeadersOnly(0, group1FileCount, totalFiles, group1Stream);
 
         if (Group2.FileCount > 0)
@@ -149,7 +148,9 @@ public class IceV4File : IceFile
             partitionedStream.NextPartition();
 
             // Extract the next group
-            var group2Stream = HandleGroupExtraction(Group2, _keys.GroupDataKeys[1], partitionedStream);
+            var (group2Stream, junk2) = HandleGroupExtraction(Group2, _keys.GroupDataKeys[1], partitionedStream);
+            using var junk2Deferred = DeferDispose(junk2);
+            
             Group2Entries = UnpackGroupHeadersOnly(group1FileCount, group2FileCount, totalFiles, group2Stream);
         }
     }
@@ -157,20 +158,29 @@ public class IceV4File : IceFile
     private void LoadFileEntries(PartitionedStream partitionedStream)
     {
         // Extract the first group
-        var group1Stream = HandleGroupExtraction(Group1, _keys.GroupDataKeys[0], partitionedStream);
+        var (group1Stream, junk1) = HandleGroupExtraction(Group1, _keys.GroupDataKeys[0], partitionedStream);
+        using var junk1Deferred = DeferDispose(junk1);
+        
         Group1Entries = UnpackGroup(Group1, group1Stream);
 
         // Move to the group 2 partition
         partitionedStream.NextPartition();
 
         // Extract the next group
-        var group2Stream = HandleGroupExtraction(Group2, _keys.GroupDataKeys[1], partitionedStream);
+        var (group2Stream, junk2) = HandleGroupExtraction(Group2, _keys.GroupDataKeys[1], partitionedStream);
+        using var junk2Deferred = DeferDispose(junk2);
+        
         Group2Entries = UnpackGroup(Group2, group2Stream);
     }
 
-    private Stream HandleGroupExtraction(GroupHeader group, IReadOnlyList<uint> keys, Stream data)
+    private static T DeferDispose<T>(T o) where T : IDisposable
     {
-        return data.Length == 0 ? data : DecodeGroup(group, keys, data);
+        return o;
+    }
+
+    private (Stream, DisposableBundle) HandleGroupExtraction(GroupHeader group, IReadOnlyList<uint> keys, Stream data)
+    {
+        return data.Length == 0 ? (data, new DisposableBundle()) : DecodeGroup(group, keys, data);
     }
 
     private const int SecondPassThreshold = 102400;
@@ -181,13 +191,13 @@ public class IceV4File : IceFile
     /// <param name="group">The group header.</param>
     /// <param name="keys">The group's decryption keys, if the file is encrypted.</param>
     /// <param name="data">The raw group data.</param>
-    private Stream DecodeGroup(GroupHeader group, IReadOnlyList<uint> keys, Stream data)
+    private (Stream, DisposableBundle) DecodeGroup(GroupHeader group, IReadOnlyList<uint> keys, Stream data)
     {
-        var decryptStream = PrepareGroupDecryption(data, keys);
+        var (decryptStream, junk) = PrepareGroupDecryption(data, keys);
         // We use the input buffer as a scratch buffer for reading in the
         // decrypted data. This doesn't cause any decryption issues since
         // we're not reading the data more than once.
-        return DecompressGroup(group, decryptStream);
+        return (DecompressGroup(group, decryptStream), junk);
     }
 
     /// <summary>
@@ -195,23 +205,28 @@ public class IceV4File : IceFile
     /// </summary>
     /// <param name="data">The group data stream.</param>
     /// <param name="keys">The group's decryption keys, if the file is encrypted.</param>
-    /// <returns>A new stream that can decrypt data while reading it in.</returns>
-    private Stream PrepareGroupDecryption(Stream data, IReadOnlyList<uint> keys)
+    /// <returns></returns>
+    private (Stream, DisposableBundle) PrepareGroupDecryption(Stream data, IReadOnlyList<uint> keys)
     {
+        var junk = new DisposableBundle();
+        
         var decryptStream = data;
         if (Header.Flags.HasFlag(IceFileFlags.Encrypted))
         {
-            // These are all managed streams without disposable resources, so we
-            // don't need to worry about disposing them properly.
             var floatageFish = new FloatageFishDecryptionStream(data, keys[0], 16);
+            
+            // These need to get disposed, so we add them to the junk pile.
             decryptStream = new BlowfishDecryptionStream(floatageFish, BitConverter.GetBytes(keys[0]));
+            junk.Objects.Add(decryptStream);
+            
             if (data.Length <= SecondPassThreshold)
             {
                 decryptStream = new BlowfishDecryptionStream(decryptStream, BitConverter.GetBytes(keys[1]));
+                junk.Objects.Add(decryptStream);
             }
         }
 
-        return decryptStream;
+        return (decryptStream, junk);
     }
 
     /// <summary>
@@ -250,7 +265,7 @@ public class IceV4File : IceFile
             }
         }
     }
-    
+
     private static FileEntry[] UnpackGroupHeadersOnly(int startFile, int endFile, int totalFiles, Stream data)
     {
         using var br = new BinaryReader(data);

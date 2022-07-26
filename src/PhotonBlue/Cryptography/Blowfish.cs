@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using ComputeSharp;
 
 // ReSharper disable ForCanBeConvertedToForeach
 
@@ -207,6 +208,24 @@ internal sealed class Blowfish
 
     #endregion
 
+    public struct GpuHandle : IDisposable
+    {
+        public ReadOnlyBuffer<uint> S0;
+        public ReadOnlyBuffer<uint> S1;
+        public ReadOnlyBuffer<uint> S2;
+        public ReadOnlyBuffer<uint> S3;
+        public ReadOnlyBuffer<uint> P;
+
+        public readonly void Dispose()
+        {
+            S0.Dispose();
+            S1.Dispose();
+            S2.Dispose();
+            S3.Dispose();
+            P.Dispose();
+        }
+    }
+    
     private const int Rounds = 16;
 
     /// <summary>
@@ -225,6 +244,18 @@ internal sealed class Blowfish
         for (var i = 0; i < s.Length; i++)
         for (var j = 0; j < s[0].Length; j += 2)
             (l, r) = (s[i][j], s[i][j + 1]) = Encrypt(l, r);
+    }
+
+    public GpuHandle AllocateToGraphicsDevice(GraphicsDevice device)
+    {
+        return new GpuHandle
+        {
+            S0 = device.AllocateReadOnlyBuffer(s[0]),
+            S1 = device.AllocateReadOnlyBuffer(s[1]),
+            S2 = device.AllocateReadOnlyBuffer(s[2]),
+            S3 = device.AllocateReadOnlyBuffer(s[3]),
+            P = device.AllocateReadOnlyBuffer(p),
+        };
     }
 
     public byte[] Encrypt(byte[] data)

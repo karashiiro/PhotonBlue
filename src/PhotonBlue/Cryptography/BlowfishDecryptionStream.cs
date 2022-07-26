@@ -1,4 +1,6 @@
 ﻿using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using ComputeSharp;
 
 namespace PhotonBlue.Cryptography;
 
@@ -7,9 +9,10 @@ internal sealed class BlowfishDecryptionStream : Stream
     public override bool CanRead => _stream.CanRead;
     public override bool CanSeek => true;
     public override bool CanWrite => false;
-    
+
     // ReSharper disable once ConvertToAutoPropertyWithPrivateSetter
     public override long Length => _length;
+
     public override long Position
     {
         get => _position - HoldCount;
@@ -17,15 +20,19 @@ internal sealed class BlowfishDecryptionStream : Stream
     }
 
     private int HoldCount => _holdEnd - _holdStart;
+     
+    private const int BufferSize = 1024 * 128;
 
     // An internal buffer for holding decrypted data that the consumer
-    // doesn't want to read, yet. Because Blowfish decrypts blocks 8 bytes
-    // at a time, this will never be larger than 8 bytes.
+    // doesn't want to read, yet. This is also used to maximize data
+    // throughput when single bytes are being read at a time.
     private readonly byte[] _hold;
     private int _holdStart;
     private int _holdEnd;
 
-    private readonly Blowfish _blowfish;
+    private readonly UploadBuffer<uint2> _gpuUpload;
+    private readonly ReadWriteBuffer<uint2> _gpuBuffer;
+    private readonly Blowfish.GpuHandle _boxes;
     private readonly Stream _stream;
 
     private long _length;
@@ -33,12 +40,16 @@ internal sealed class BlowfishDecryptionStream : Stream
 
     public BlowfishDecryptionStream(Stream data, IEnumerable<byte> key)
     {
-        _hold = new byte[8];
+        _hold = new byte[BufferSize];
         _holdStart = 0;
         _holdEnd = 0;
         
-        _blowfish = new Blowfish(key);
+        var blowfish = new Blowfish(key);
+        _boxes = blowfish.AllocateToGraphicsDevice(GraphicsDevice.Default);
         _stream = data;
+
+        _gpuBuffer = GraphicsDevice.Default.AllocateReadWriteBuffer<uint2>(BufferSize / 8);
+        _gpuUpload = GraphicsDevice.Default.AllocateUploadBuffer<uint2>(BufferSize / 8);
 
         _length = data.Length;
         _position = data.Position;
@@ -49,7 +60,7 @@ internal sealed class BlowfishDecryptionStream : Stream
         _stream.Flush();
     }
 
-    public override int Read(byte[] buffer, int offset, int count)
+    public override unsafe int Read(byte[] buffer, int offset, int count)
     {
         if (count == 0)
         {
@@ -77,9 +88,9 @@ internal sealed class BlowfishDecryptionStream : Stream
         // Create a padded buffer that can hold a multiple of 8 bytes for decryption, and
         // fill it with data. If this would read more data than the amount of remaining data,
         // then just read all of the remaining data.
-        var nToRead = Convert.ToInt32(Math.Min(nLeft + (8 - nLeft % 8), _length - _position));
+        var nToRead = Convert.ToInt32(RoundBufferSize(Math.Min(nLeft, _length - _position)));
         var readBuf = new byte[nToRead]; // Not sure how to avoid this allocation
-        var nRead = _stream.Read(readBuf, 0, nToRead);
+        var nRead = _stream.Read(readBuf, 0, readBuf.Length);
         _position += nRead;
 
         // No data remaining; return early.
@@ -88,18 +99,22 @@ internal sealed class BlowfishDecryptionStream : Stream
             return outIndex - offset;
         }
 
-        if (_length % 8 == 0 || _length - _position >= 8)
+        // Standard Blowfish needs its payloads to be a multiple of 8 bytes long.
+        // When we're reading data before the end of the payload, or if the payload
+        // is naturally a multiple of 8 bytes long, we follow standard Blowfish conventions.
+        // If we're reading data at the end of the payload, we degrade to SEGA's
+        // broken Blowfish implementation, which ignores the last few bytes.
+        var decryptLength = nRead - nRead % 8;
+        var dataEx = new Span<uint2>(Unsafe.AsPointer(ref readBuf[0]), decryptLength / 8);
+        for (var i = 0; i < dataEx.Length; i += _gpuUpload.Span.Length)
         {
-            // Standard Blowfish needs its payloads to be a multiple of 8 bytes long.
-            // When we're reading data before the end of the payload, we follow standard
-            // Blowfish conventions.
-            _blowfish.DecryptStandard(readBuf);
-        }
-        else
-        {
-            // If we're reading data at the end of the payload, we degrade to SEGA's
-            // broken Blowfish implementation, which ignores the last few bytes.
-            _blowfish.Decrypt(readBuf);
+            var len = Math.Min(_gpuUpload.Span.Length, dataEx[i..].Length);
+            var dataSlice = dataEx.Slice(i, len);
+            dataSlice.CopyTo(_gpuUpload.Span);
+            _gpuUpload.CopyTo(_gpuBuffer);
+            GraphicsDevice.Default.For(_gpuUpload.Span.Length, 1, 1, 1024, 1, 1,
+                new BlowfishShader(_boxes.S0, _boxes.S1, _boxes.S2, _boxes.S3, _boxes.P, _gpuBuffer));
+            _gpuBuffer.CopyTo(dataSlice);
         }
 
         // Copy the decrypted data to the appropriate arrays.
@@ -118,7 +133,13 @@ internal sealed class BlowfishDecryptionStream : Stream
         return Math.Min(outIndex - offset, count);
     }
 
-    public override int ReadByte()
+    private static long RoundBufferSize(long nLeft)
+    {
+        var remainder = nLeft % 8;
+        return remainder == 0 ? nLeft : nLeft + (8 - nLeft % 8);
+    }
+
+    public override unsafe int ReadByte()
     {
         // Read data from the internal buffer.
         if (HoldCount != 0)
@@ -126,28 +147,35 @@ internal sealed class BlowfishDecryptionStream : Stream
             return _hold[_holdStart++];
         }
 
-        // If the underlying data is not a multiple of 8 bytes long and in the
-        // remainder bytes, then just return data without decrypting it. This
-        // is an artifact of SEGA's interesting Blowfish implementation.
+        // If the underlying data is not a multiple of 8 bytes long and we're
+        // in the remainder bytes, then just return data without decrypting
+        // it. This is an artifact of SEGA's interesting Blowfish implementation.
         if (_length % 8 != 0 && _length - _position < 8)
         {
             _position++;
             return _stream.ReadByte();
         }
 
-        // Otherwise, read data from the stream, decrypt it normally, and hold
-        // anything we're not returning. We can read data directly into the hold
-        // buffer, since we know that it has been completely consumed. We also
-        // know that this is not the end of the file, so we don't need to handle
-        // the buffer being only partially filled.
+        // Read data from the stream, decrypt it, and hold anything we're not
+        // returning. We can read data directly into the hold buffer, since we
+        // know that it has been completely consumed.
         var nRead = _stream.Read(_hold, 0, _hold.Length);
-        _position += nRead;
-        Debug.Assert(nRead == _hold.Length, "Unexpected end of stream.");
-
         _holdStart = 0;
         _holdEnd = nRead;
+        _position += nRead;
 
-        _blowfish.DecryptStandard(_hold);
+        var decryptLength = nRead - nRead % 8;
+        var dataEx = new Span<uint2>(Unsafe.AsPointer(ref _hold[0]), decryptLength / 8);
+        for (var i = 0; i < dataEx.Length; i += _gpuUpload.Span.Length)
+        {
+            var len = Math.Min(_gpuUpload.Span.Length, dataEx[i..].Length);
+            var dataSlice = dataEx.Slice(i, len);
+            dataSlice.CopyTo(_gpuUpload.Span);
+            _gpuUpload.CopyTo(_gpuBuffer);
+            GraphicsDevice.Default.For(_gpuUpload.Span.Length, 1, 1, 1024, 1, 1,
+                new BlowfishShader(_boxes.S0, _boxes.S1, _boxes.S2, _boxes.S3, _boxes.P, _gpuBuffer));
+            _gpuBuffer.CopyTo(dataSlice);
+        }
 
         // Return the next decrypted byte, if possible.
         if (HoldCount != 0)
@@ -177,9 +205,9 @@ internal sealed class BlowfishDecryptionStream : Stream
         {
             return Position;
         }
-        
+
         Debug.Assert(HoldCount == 0, "Hold buffer still contains unread data.");
-        
+
         var alignedCount = count - count % 8;
         _stream.Seek(alignedCount, SeekOrigin.Current);
         if (count - alignedCount == 0)
@@ -191,7 +219,7 @@ internal sealed class BlowfishDecryptionStream : Stream
         Span<byte> junk2 = stackalloc byte[Convert.ToInt32(count - alignedCount)];
         var nRead = Read(junk2);
         Debug.Assert(nRead == junk2.Length, "Unexpected end of stream.");
-        
+
         return Position;
     }
 
@@ -205,10 +233,11 @@ internal sealed class BlowfishDecryptionStream : Stream
     {
         throw new NotSupportedException();
     }
-    
+
     private void LoadHeldBytes(Span<byte> buffer)
     {
-        Debug.Assert(HoldCount - buffer.Length >= 0, "Hold buffer does not contain enough elements to support this operation.");
+        Debug.Assert(HoldCount - buffer.Length >= 0,
+            "Hold buffer does not contain enough elements to support this operation.");
         _hold.AsSpan(_holdStart, buffer.Length).CopyTo(buffer);
         _holdStart += buffer.Length;
     }
@@ -216,12 +245,25 @@ internal sealed class BlowfishDecryptionStream : Stream
     private void HoldBytes(Span<byte> buffer)
     {
         Debug.Assert(HoldCount == 0, "Hold buffer still contains unread data.");
-        Debug.Assert(buffer.Length <= 8, "Hold buffer would be larger than 8 bytes after this operation.");
+        Debug.Assert(buffer.Length <= _hold.Length,
+            $"Hold buffer would be larger than {_hold.Length} bytes after this operation.");
 
         // Clobber any data currently in the hold buffer since this will never be called
         // while the hold buffer still has data.
         buffer.CopyTo(_hold.AsSpan(0, buffer.Length));
         _holdStart = 0;
         _holdEnd = buffer.Length;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _boxes.Dispose();
+            _gpuBuffer.Dispose();
+            _gpuUpload.Dispose();
+        }
+
+        base.Dispose(disposing);
     }
 }
