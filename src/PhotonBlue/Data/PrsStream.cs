@@ -28,7 +28,7 @@ public class PrsStream : Stream
                 lookaround[lookaroundOffset++] = lookaround[LoadIndex++];
                 LoadIndex %= lookaround.Count;
                 lookaroundOffset %= lookaround.Count;
-                
+
                 // Doing these modulus assignments every loop is much slower
                 // than doing comparisons every loop instead.
                 if (LoadIndex == lookaround.Count)
@@ -41,7 +41,7 @@ public class PrsStream : Stream
                     lookaroundOffset %= lookaround.Count;
                 }
             }
-            
+
             BytesRead += toRead;
             return toRead;
         }
@@ -53,7 +53,7 @@ public class PrsStream : Stream
             for (var i = 0; i < toRead; i++)
             {
                 lookaround[lookaroundOffset++] = lookaround[LoadIndex++];
-                
+
                 if (LoadIndex == lookaround.Count)
                 {
                     LoadIndex %= lookaround.Count;
@@ -88,7 +88,7 @@ public class PrsStream : Stream
         get => throw new NotSupportedException();
         set => throw new NotSupportedException();
     }
-    
+
     private byte _ctrlByte;
     private int _ctrlByteCounter;
 
@@ -110,11 +110,11 @@ public class PrsStream : Stream
     {
         _ctrlByteCounter = 8;
         _ctrlByte = 0;
-        
+
         _lookaround = new byte[0x1FFF];
         _lookaroundIndex = 0;
         _bytesRead = 0;
-        
+
         _stream = input;
     }
 
@@ -172,7 +172,7 @@ public class PrsStream : Stream
                     {
                         _lookaroundIndex %= _lookaround.Length;
                     }
-                    
+
                     break;
                 case (PrsInstruction.Pointer, _, _) ptr:
                 {
@@ -237,12 +237,12 @@ public class PrsStream : Stream
                     _lookaround[_lookaroundIndex++] = (byte)GetNextByte();
                     _bytesRead++;
                     outIndex++;
-                    
+
                     if (_lookaroundIndex == _lookaround.Length)
                     {
                         _lookaroundIndex %= _lookaround.Length;
                     }
-                    
+
                     break;
                 case (PrsInstruction.Pointer, _, _) ptr:
                 {
@@ -281,7 +281,7 @@ public class PrsStream : Stream
     private void ReadPointer(int offset, int size, Span<byte> buffer, int toRead)
     {
         Debug.Assert(offset != 0 && _bytesRead >= -offset, "Bad copy instruction detected.");
-        
+
         _bytesRead += toRead;
 
         var loadIndex = (_lookaroundIndex + offset) % _lookaround.Length;
@@ -298,7 +298,7 @@ public class PrsStream : Stream
 
             // Read through to the lookaround buffer.
             _lookaround[_lookaroundIndex++] = _lookaround[loadIndex++];
-            
+
             // Doing these modulus assignments every loop is much slower
             // than doing comparisons every loop instead.
             if (loadIndex == _lookaround.Length)
@@ -311,7 +311,7 @@ public class PrsStream : Stream
                 _lookaroundIndex %= _lookaround.Length;
             }
         }
-            
+
         if (toRead != size)
         {
             // Store the current PRS instruction so we can resume it on the next read.
@@ -335,15 +335,15 @@ public class PrsStream : Stream
     private void SeekPointer(int offset, int size, int toSeek)
     {
         Debug.Assert(offset != 0 && _bytesRead >= -offset, "Bad copy instruction detected.");
-        
+
         _bytesRead += toSeek;
-                
+
         var loadIndex = (_lookaroundIndex + offset) % _lookaround.Length;
         if (loadIndex < 0)
         {
             loadIndex += _lookaround.Length;
         }
-            
+
         for (var index = 0; index < toSeek; index++)
         {
             _lookaround[_lookaroundIndex++] = _lookaround[loadIndex++];
@@ -448,7 +448,7 @@ public class PrsStream : Stream
         {
             controlSize += 2;
         }
-        
+
         if (GetControlBit())
         {
             controlSize++;

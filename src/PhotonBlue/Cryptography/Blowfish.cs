@@ -225,7 +225,7 @@ internal sealed class Blowfish
             P.Dispose();
         }
     }
-    
+
     private const int Rounds = 16;
 
     /// <summary>
@@ -291,7 +291,7 @@ internal sealed class Blowfish
     {
         Span<uint> pCopy = stackalloc uint[18];
         p.CopyTo(pCopy);
-        
+
         // SEGA seems to have rolled their own Blowfish implementation which ignores
         // the last (8 - data.Length % 8) bytes.
         ref var p0 = ref Unsafe.As<uint, ulong>(ref pCopy[0]);
@@ -301,14 +301,14 @@ internal sealed class Blowfish
             Unsafe.As<byte, ulong>(ref data[i]) = x;
         }
     }
-    
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static ulong ToUInt64(ReadOnlySpan<byte> data)
     {
         // This is just BitConverter.ToUInt64, but without its length check.
         return Unsafe.ReadUnaligned<ulong>(ref MemoryMarshal.GetReference(data));
     }
-    
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private ref uint GetPBoxElementRef(nint index)
     {
@@ -331,7 +331,7 @@ internal sealed class Blowfish
         return ((GetSBoxElementRef(0, x >> 24) + GetSBoxElementRef(1, (x >> 16) & 0xFF)) ^
                 GetSBoxElementRef(2, (x >> 8) & 0xFF)) + GetSBoxElementRef(3, x & 0xFF);
     }
-    
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private ulong Fu64(uint x)
     {
@@ -357,12 +357,12 @@ internal sealed class Blowfish
     {
         // Swap the low and high halves of x
         x = BitOperations.RotateRight(x, 32);
-        
+
         for (var i = Rounds / 2; i > 0; i--)
         {
             // Parallel XOR
             x ^= Unsafe.Add(ref p0, i);
-            
+
             // XOR the low and high halves of x separately
             x ^= Fu64((uint)(x >> 32));
             x ^= Fu64((uint)x) << 32;
