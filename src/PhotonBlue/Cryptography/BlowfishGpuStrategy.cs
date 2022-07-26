@@ -30,7 +30,7 @@ public class BlowfishGpuStrategy : BlowfishStrategy
             var dataSlice = dataEx.Slice(i, len);
             dataSlice.CopyTo(_gpuUpload.Span);
             _gpuUpload.CopyTo(_gpuBuffer);
-            GraphicsDevice.Default.For(_gpuUpload.Span.Length, 1, 1, 64, 1, 1,
+            GraphicsDevice.Default.For(_gpuUpload.Span.Length, 1, 1, 8, 8, 1,
                 new BlowfishShader(_boxes.S0, _boxes.S1, _boxes.S2, _boxes.S3, _boxes.P, _gpuBuffer));
             _gpuBuffer.CopyTo(dataSlice);
         }
