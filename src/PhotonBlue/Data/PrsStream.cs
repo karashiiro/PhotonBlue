@@ -452,10 +452,8 @@ public class PrsStream : Stream
 
     private int GetNextByte()
     {
-        var initialPos = _stream.Position;
         var next = _stream.ReadByte();
         Debug.Assert(next != -1, "Unexpected end of stream.");
-        Debug.Assert(_stream.Position == initialPos + 1, "Unexpected end of stream.");
         return next;
     }
 }
