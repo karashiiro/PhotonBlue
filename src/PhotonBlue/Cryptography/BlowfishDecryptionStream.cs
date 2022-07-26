@@ -47,9 +47,7 @@ internal sealed class BlowfishDecryptionStream : Stream
         _holdStart = 0;
         _holdEnd = 0;
         
-        var blowfish = new Blowfish(key);
         _stream = data;
-
         _length = data.Length;
         _position = data.Position;
     }
