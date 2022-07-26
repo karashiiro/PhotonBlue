@@ -273,7 +273,8 @@ public class PrsStream : Stream
     /// </summary>
     /// <param name="offset">The offset to copy data from.</param>
     /// <param name="size">The length of the block to copy.</param>
-    /// <param name="toSeek">
+    /// <param name="buffer">The buffer to copy data to.</param>
+    /// <param name="toRead">
     /// The maximum number of bytes to process. Any further bytes will be processed the next time data
     /// is read or seeked.
     /// </param>
