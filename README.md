@@ -1,6 +1,11 @@
 # Photon Blue
 A library for fast index and lookup operations on PSO2's game data.
 
+## System requirements
+* Windows x64
+* .NET 6 Runtime
+* DirectX 12
+
 ## Acknowledgements
 Photon Blue copies/builds on prior work in both the PSO2 and FFXIV development communities,
 among other knowledge bases.
