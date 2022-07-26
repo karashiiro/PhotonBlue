@@ -3,7 +3,7 @@ using ComputeSharp;
 namespace PhotonBlue.Cryptography;
 
 [AutoConstructor]
-[EmbeddedBytecode(1024, 1, 1)]
+[EmbeddedBytecode(64, 1, 1)]
 public readonly partial struct BlowfishShader : IComputeShader
 {
     private const int Rounds = 16;

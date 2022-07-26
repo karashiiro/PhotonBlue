@@ -20,8 +20,6 @@ internal sealed class BlowfishDecryptionStream : Stream
     }
 
     private int HoldCount => _holdEnd - _holdStart;
-     
-    private const int BufferSize = 1024 * 128;
 
     // An internal buffer for holding decrypted data that the consumer
     // doesn't want to read, yet. This is also used to maximize data
@@ -30,26 +28,27 @@ internal sealed class BlowfishDecryptionStream : Stream
     private int _holdStart;
     private int _holdEnd;
 
-    private readonly UploadBuffer<uint2> _gpuUpload;
-    private readonly ReadWriteBuffer<uint2> _gpuBuffer;
-    private readonly Blowfish.GpuHandle _boxes;
+    private readonly BlowfishStrategy _strategy;
     private readonly Stream _stream;
 
     private long _length;
     private long _position;
 
-    public BlowfishDecryptionStream(Stream data, IEnumerable<byte> key)
+    private const int GpuBufferSize = 131072;
+    private const int CpuBufferSize = 8;
+    private const int StrategyThreshold = 65536;
+
+    public BlowfishDecryptionStream(Stream data, byte[] key)
     {
-        _hold = new byte[BufferSize];
+        var bufferSize = data.Length > StrategyThreshold ? GpuBufferSize : CpuBufferSize;
+        _strategy = data.Length > StrategyThreshold ? new BlowfishGpuStrategy(key, bufferSize) : new BlowfishCpuStrategy(key);
+        
+        _hold = new byte[bufferSize];
         _holdStart = 0;
         _holdEnd = 0;
         
         var blowfish = new Blowfish(key);
-        _boxes = blowfish.AllocateToGraphicsDevice(GraphicsDevice.Default);
         _stream = data;
-
-        _gpuBuffer = GraphicsDevice.Default.AllocateReadWriteBuffer<uint2>(BufferSize / 8);
-        _gpuUpload = GraphicsDevice.Default.AllocateUploadBuffer<uint2>(BufferSize / 8);
 
         _length = data.Length;
         _position = data.Position;
@@ -105,17 +104,7 @@ internal sealed class BlowfishDecryptionStream : Stream
         // If we're reading data at the end of the payload, we degrade to SEGA's
         // broken Blowfish implementation, which ignores the last few bytes.
         var decryptLength = nRead - nRead % 8;
-        var dataEx = new Span<uint2>(Unsafe.AsPointer(ref readBuf[0]), decryptLength / 8);
-        for (var i = 0; i < dataEx.Length; i += _gpuUpload.Span.Length)
-        {
-            var len = Math.Min(_gpuUpload.Span.Length, dataEx[i..].Length);
-            var dataSlice = dataEx.Slice(i, len);
-            dataSlice.CopyTo(_gpuUpload.Span);
-            _gpuUpload.CopyTo(_gpuBuffer);
-            GraphicsDevice.Default.For(_gpuUpload.Span.Length, 1, 1, 1024, 1, 1,
-                new BlowfishShader(_boxes.S0, _boxes.S1, _boxes.S2, _boxes.S3, _boxes.P, _gpuBuffer));
-            _gpuBuffer.CopyTo(dataSlice);
-        }
+        _strategy.Decrypt(readBuf.AsSpan()[..decryptLength]);
 
         // Copy the decrypted data to the appropriate arrays.
         var toHold = Math.Max(nRead - nLeft, 0);
@@ -165,17 +154,7 @@ internal sealed class BlowfishDecryptionStream : Stream
         _position += nRead;
 
         var decryptLength = nRead - nRead % 8;
-        var dataEx = new Span<uint2>(Unsafe.AsPointer(ref _hold[0]), decryptLength / 8);
-        for (var i = 0; i < dataEx.Length; i += _gpuUpload.Span.Length)
-        {
-            var len = Math.Min(_gpuUpload.Span.Length, dataEx[i..].Length);
-            var dataSlice = dataEx.Slice(i, len);
-            dataSlice.CopyTo(_gpuUpload.Span);
-            _gpuUpload.CopyTo(_gpuBuffer);
-            GraphicsDevice.Default.For(_gpuUpload.Span.Length, 1, 1, 1024, 1, 1,
-                new BlowfishShader(_boxes.S0, _boxes.S1, _boxes.S2, _boxes.S3, _boxes.P, _gpuBuffer));
-            _gpuBuffer.CopyTo(dataSlice);
-        }
+        _strategy.Decrypt(_hold.AsSpan()[..decryptLength]);
 
         // Return the next decrypted byte, if possible.
         if (HoldCount != 0)
@@ -259,9 +238,7 @@ internal sealed class BlowfishDecryptionStream : Stream
     {
         if (disposing)
         {
-            _boxes.Dispose();
-            _gpuBuffer.Dispose();
-            _gpuUpload.Dispose();
+            _strategy.Dispose();
         }
 
         base.Dispose(disposing);
