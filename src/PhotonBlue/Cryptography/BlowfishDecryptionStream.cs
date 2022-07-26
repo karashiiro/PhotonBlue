@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Numerics;
 
 namespace PhotonBlue.Cryptography;
 
@@ -42,9 +43,10 @@ internal sealed class BlowfishDecryptionStream : Stream
         // only read a small amount of data (think large ICE archives that we only read headers
         // from, with only one file entry). More analysis needs to be done to determine the
         // optimal inflection point here.
-        var bufferSize = data.Length > BlowfishGpuStrategy.RecommendedThreshold ? GpuBufferSize : CpuBufferSize;
+        var baseBufferSize = data.Length > BlowfishGpuStrategy.RecommendedThreshold ? GpuBufferSize : CpuBufferSize;
+        var bufferSize = Math.Min(BitOperations.RoundUpToPowerOf2(Convert.ToUInt64(data.Length)), Convert.ToUInt64(baseBufferSize));
         _strategy = data.Length > BlowfishGpuStrategy.RecommendedThreshold
-            ? new BlowfishGpuStrategy(key, bufferSize)
+            ? new BlowfishGpuStrategy(key, Convert.ToInt32(bufferSize))
             : new BlowfishCpuStrategy(key);
 
         _hold = new byte[bufferSize];
