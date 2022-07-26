@@ -17,7 +17,7 @@ public class FileHandleManager : IDisposable
         {
             _tokenSource = new CancellationTokenSource();
 
-            _loadThreads = new Thread[Math.Max(1, Environment.ProcessorCount - 1)];
+            _loadThreads = new Thread[(int)(Environment.ProcessorCount * 1.5)];
             for (var i = 0; i < _loadThreads.Length; i++)
             {
                 _loadThreads[i] = new Thread(LoadInternally);
