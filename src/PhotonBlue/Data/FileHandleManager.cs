@@ -3,11 +3,11 @@
 public class FileHandleManager
 {
     /// <summary>
-    /// Creates a new handle to a game file but does not load it. You will need to call <see cref="ProcessQueue"/>
-    /// yourself for these handles to be loaded on a different thread.
+    /// Creates a new handle to a game file but does not load it. The file will be queued on the
+    /// thread pool and loaded in the background.
     /// </summary>
     /// <param name="path">The path to the file to load.</param>
-    /// <param name="loadComplete">Whether or not to load the complete file when processing the queue.</param>
+    /// <param name="loadComplete">Whether or not to load the complete file when processing the load operation.</param>
     /// <typeparam name="T">The type of <see cref="FileResource"/> to load.</typeparam>
     /// <returns>A handle to the file to be loaded.</returns>
     public static FileHandle<T> CreateHandle<T>(string path, bool loadComplete = true) where T : FileResource, new()
