@@ -16,11 +16,11 @@ public class FileHandleManager
         var weakRef = new WeakReference<BaseFileHandle>(handle);
         if (loadComplete)
         {
-            ThreadPool.UnsafeQueueUserWorkItem(LoadFileHandle, weakRef);
+            ThreadPool.QueueUserWorkItem(LoadFileHandle, weakRef);
         }
         else
         {
-            ThreadPool.UnsafeQueueUserWorkItem(LoadFileHandleHeadersOnly, weakRef);
+            ThreadPool.QueueUserWorkItem(LoadFileHandleHeadersOnly, weakRef);
         }
 
         return handle;
