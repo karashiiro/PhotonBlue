@@ -234,16 +234,27 @@ internal sealed class Blowfish
     /// <param name="key">The key to use.</param>
     public Blowfish(IEnumerable<byte> key)
     {
+        // Execute key schedule
         foreach (var (i, keyFragment) in WrappingUInt32(key, p.Length))
-            p[i] ^= keyFragment;
+        {
+            GetPBoxElementRef(i) ^= keyFragment;
+        }
 
-        uint l = 0, r = 0;
-        for (var i = 0; i < p.Length; i += 2)
-            (l, r) = (p[i], p[i + 1]) = Encrypt(l, r);
+        var x = 0UL;
+        ref var p0 = ref Unsafe.As<uint, ulong>(ref GetPBoxElementRef(0));
+        for (var i = 0; i < p.Length / 2; i++)
+        {
+            x = Unsafe.Add(ref p0, i) = Encrypt(ref p0, x);
+        }
 
         for (var i = 0; i < s.Length; i++)
-        for (var j = 0; j < s[0].Length; j += 2)
-            (l, r) = (s[i][j], s[i][j + 1]) = Encrypt(l, r);
+        {
+            ref var si = ref Unsafe.As<uint, ulong>(ref s[i][0]);
+            for (var j = 0; j < s[0].Length / 2; j++)
+            {
+                x = Unsafe.Add(ref si, j) = Encrypt(ref p0, x);
+            }
+        }
     }
 
     public GpuHandle AllocateToGraphicsDevice(GraphicsDevice device)
@@ -260,12 +271,17 @@ internal sealed class Blowfish
 
     public byte[] Encrypt(byte[] data)
     {
+        // Pad the buffer, since Blowfish works on 8-byte blocks. Once the library actually
+        // uses this function, this should be removed, since SEGA's implementation doesn't
+        // do Blowfish correctly. 
         var paddedLength = data.Length % 8 == 0 ? data.Length : data.Length + (8 - data.Length % 8);
         var buffer = new byte[paddedLength];
         Buffer.BlockCopy(data, 0, buffer, 0, data.Length);
 
         for (var i = 0; i < paddedLength; i += 8)
         {
+            // Once the library actually uses this function, this should be
+            // changed to use the optimized version of it.
             var (l, r) = Encrypt(BitConverter.ToUInt32(buffer, i), BitConverter.ToUInt32(buffer, i + 4));
             Unsafe.As<byte, uint>(ref buffer[i]) = l;
             Unsafe.As<byte, uint>(ref buffer[i + 4]) = r;
@@ -345,12 +361,31 @@ internal sealed class Blowfish
         for (var i = 0; i < Rounds; i += 2)
         {
             l ^= GetPBoxElementRef(i);
-            r ^= F(l);
             r ^= GetPBoxElementRef(i + 1);
+            r ^= F(l);
             l ^= F(r);
         }
 
         return (r ^ GetPBoxElementRef(17), l ^ GetPBoxElementRef(16));
+    }
+
+    private ulong Encrypt(ref ulong p0, ulong x)
+    {
+        for (var i = 0; i < Rounds / 2; i++)
+        {
+            // Parallel XOR
+            x ^= Unsafe.Add(ref p0, i);
+
+            // XOR the low and high halves of x separately
+            x ^= Fu64((uint)x) << 32;
+            x ^= Fu64((uint)(x >> 32));
+        }
+
+        // Parallel XOR
+        x ^= Unsafe.Add(ref p0, 8);
+
+        // Swap the low and high halves of x
+        return BitOperations.RotateRight(x, 32);
     }
 
     private ulong Decrypt(ref ulong p0, ulong x)
