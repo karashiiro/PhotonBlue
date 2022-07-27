@@ -2,7 +2,7 @@
 
 namespace PhotonBlue;
 
-public class GameData : IDisposable
+public class GameData
 {
     /// <summary>
     /// The current data path that Photon Blue is using to load files.
@@ -17,7 +17,7 @@ public class GameData : IDisposable
     /// </summary>
     private FileHandleManager FileHandleManager { get; }
 
-    public GameData(string pso2BinPath, bool processFileLoadsInternally = true)
+    public GameData(string pso2BinPath)
     {
         DataPath = new DirectoryInfo(pso2BinPath);
 
@@ -31,7 +31,7 @@ public class GameData : IDisposable
             throw new ArgumentException("DataPath must point to the pso2_bin directory.", nameof(pso2BinPath));
         }
 
-        FileHandleManager = new FileHandleManager(processFileLoadsInternally);
+        FileHandleManager = new FileHandleManager();
         Index = new GameFileIndexer(FileHandleManager);
     }
 
@@ -98,11 +98,5 @@ public class GameData : IDisposable
     public FileHandle<T> GetFileHandle<T>(string path, bool loadComplete = true) where T : FileResource, new()
     {
         return FileHandleManager.CreateHandle<T>(path, loadComplete);
-    }
-
-    public void Dispose()
-    {
-        FileHandleManager.Dispose();
-        GC.SuppressFinalize(this);
     }
 }

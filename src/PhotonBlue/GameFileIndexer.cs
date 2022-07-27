@@ -62,7 +62,7 @@ public class GameFileIndexer : IGameFileIndexer
                 var (p, s, r, f) = file;
 
                 // Currently only processing ICE files; will add more once this works
-                var handle = _fileHandleManager.CreateHandle<IceV4File>(p, false);
+                var handle = FileHandleManager.CreateHandle<IceV4File>(p, false);
                 return ((BaseFileHandle)handle, s, r, f);
             }));
     }

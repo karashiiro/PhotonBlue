@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Diagnostics;
+using System.Text;
 using PhotonBlue.Extensions;
 // ReSharper disable NotAccessedField.Global
 
@@ -79,6 +80,8 @@ public class NiflFile : FileResource
 
     public override void LoadFile()
     {
+        Debug.Assert(Reader != null);
+        
         Header = FileHeader.Read(Reader);
         Reader.Seek(Header.Rel0Offset, SeekOrigin.Begin);
         Rel0 = Rel0Header.Read(Reader);
@@ -88,6 +91,8 @@ public class NiflFile : FileResource
 
     public IList<string> ReadText()
     {
+        Debug.Assert(Reader != null);
+        
         Reader.Seek(Header.Rel0Offset + 16, SeekOrigin.Begin);
         var controls = new uint[Nof0.Count];
         for (var i = 0; i < Nof0.Count; i++)

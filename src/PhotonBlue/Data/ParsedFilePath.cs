@@ -43,5 +43,5 @@ public class ParsedFilePath
         };
     }
     
-    public static implicit operator string(ParsedFilePath o) => o.RawPath;
+    public static implicit operator string(ParsedFilePath o) => o.RawPath!;
 }
