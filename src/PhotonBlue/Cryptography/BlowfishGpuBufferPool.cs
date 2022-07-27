@@ -5,6 +5,8 @@ namespace PhotonBlue.Cryptography;
 
 public sealed class BlowfishGpuBufferPool : IDisposable
 {
+    public const int DataBufferSize = 524288;
+    
     private const int MaxConcurrency = 8;
     private const int MinConcurrency = 2;
 
@@ -17,7 +19,7 @@ public sealed class BlowfishGpuBufferPool : IDisposable
         _semaphore = new SemaphoreSlim(MaxConcurrency, MaxConcurrency);
     }
 
-    public BlowfishGpuHandle Acquire(Blowfish state)
+    public unsafe BlowfishGpuHandle Acquire(Blowfish state)
     {
         _semaphore.Wait();
 
@@ -33,11 +35,12 @@ public sealed class BlowfishGpuBufferPool : IDisposable
 
         handle = new BlowfishGpuHandle
         {
-            S0 = GraphicsDevice.Default.AllocateReadOnlyBuffer(state.S[0]),
-            S1 = GraphicsDevice.Default.AllocateReadOnlyBuffer(state.S[1]),
-            S2 = GraphicsDevice.Default.AllocateReadOnlyBuffer(state.S[2]),
-            S3 = GraphicsDevice.Default.AllocateReadOnlyBuffer(state.S[3]),
+            S0 = GraphicsDevice.Default.AllocateConstantBuffer(state.S[0]),
+            S1 = GraphicsDevice.Default.AllocateConstantBuffer(state.S[1]),
+            S2 = GraphicsDevice.Default.AllocateConstantBuffer(state.S[2]),
+            S3 = GraphicsDevice.Default.AllocateConstantBuffer(state.S[3]),
             P = GraphicsDevice.Default.AllocateConstantBuffer(state.P),
+            Data = GraphicsDevice.Default.AllocateReadWriteBuffer<uint2>(DataBufferSize / sizeof(uint2)),
         };
 
         return handle;
@@ -45,7 +48,7 @@ public sealed class BlowfishGpuBufferPool : IDisposable
 
     public void Release(BlowfishGpuHandle handle)
     {
-        if (_semaphore.CurrentCount > MinConcurrency)
+        if (MaxConcurrency - _semaphore.CurrentCount > MinConcurrency)
         {
             handle.Dispose();
         }

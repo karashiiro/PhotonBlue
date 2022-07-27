@@ -33,7 +33,7 @@ internal sealed class BlowfishDecryptionStream : Stream
     private long _length;
     private long _position;
 
-    private const int GpuMaxBufferSize = 524288; // 512kB
+    private const int GpuMaxBufferSize = BlowfishGpuBufferPool.DataBufferSize;
     private const int CpuMaxBufferSize = 8;
 
     public BlowfishDecryptionStream(Stream data, IEnumerable<byte> key)
@@ -45,7 +45,7 @@ internal sealed class BlowfishDecryptionStream : Stream
         var baseBufferSize = data.Length > BlowfishGpuStrategy.RecommendedThreshold ? GpuMaxBufferSize : CpuMaxBufferSize;
         var bufferSize = Math.Min(BitOperations.RoundUpToPowerOf2(Convert.ToUInt64(data.Length)), Convert.ToUInt64(baseBufferSize));
         _strategy = data.Length > BlowfishGpuStrategy.RecommendedThreshold
-            ? new BlowfishGpuStrategy(key, Convert.ToInt32(bufferSize))
+            ? new BlowfishGpuStrategy(key)
             : new BlowfishCpuStrategy(key);
 
         _hold = new byte[bufferSize];

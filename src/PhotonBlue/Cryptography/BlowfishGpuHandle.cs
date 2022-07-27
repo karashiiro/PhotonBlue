@@ -4,11 +4,13 @@ namespace PhotonBlue.Cryptography;
 
 public struct BlowfishGpuHandle : IDisposable
 {
-    public ReadOnlyBuffer<uint> S0;
-    public ReadOnlyBuffer<uint> S1;
-    public ReadOnlyBuffer<uint> S2;
-    public ReadOnlyBuffer<uint> S3;
+    public ConstantBuffer<uint> S0;
+    public ConstantBuffer<uint> S1;
+    public ConstantBuffer<uint> S2;
+    public ConstantBuffer<uint> S3;
     public ConstantBuffer<uint> P;
+
+    public ReadWriteBuffer<uint2> Data;
 
     public readonly void Dispose()
     {
@@ -17,5 +19,6 @@ public struct BlowfishGpuHandle : IDisposable
         S2.Dispose();
         S3.Dispose();
         P.Dispose();
+        Data.Dispose();
     }
 }

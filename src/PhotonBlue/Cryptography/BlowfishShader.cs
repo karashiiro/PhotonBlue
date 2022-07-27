@@ -8,10 +8,10 @@ public readonly partial struct BlowfishShader : IComputeShader
 {
     private const int Rounds = 16;
     
-    public readonly ReadOnlyBuffer<uint> s0;
-    public readonly ReadOnlyBuffer<uint> s1;
-    public readonly ReadOnlyBuffer<uint> s2;
-    public readonly ReadOnlyBuffer<uint> s3;
+    public readonly ConstantBuffer<uint> s0;
+    public readonly ConstantBuffer<uint> s1;
+    public readonly ConstantBuffer<uint> s2;
+    public readonly ConstantBuffer<uint> s3;
     public readonly ConstantBuffer<uint> p;
     
     // Work buffer data is packed as a buffer of L/R pairs for simplicity.
