@@ -4,7 +4,7 @@ public class BlowfishCpuStrategy : BlowfishStrategy
 {
     private readonly Blowfish _blowfish;
 
-    public BlowfishCpuStrategy(IEnumerable<byte> key)
+    public BlowfishCpuStrategy(ReadOnlySpan<byte> key)
     {
         _blowfish = new Blowfish(key);
     }

@@ -36,7 +36,7 @@ internal sealed class BlowfishDecryptionStream : Stream
     private const int GpuMaxBufferSize = BlowfishGpuBufferPool.DataBufferSize;
     private const int CpuMaxBufferSize = 8;
 
-    public BlowfishDecryptionStream(Stream data, IEnumerable<byte> key)
+    public BlowfishDecryptionStream(Stream data, ReadOnlySpan<byte> key)
     {
         // This does well on small files and on large files that we read the entirety of.
         // In the worst case, we select the GPU decryption strategy for a large file and then

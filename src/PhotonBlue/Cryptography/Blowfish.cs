@@ -213,12 +213,18 @@ public sealed class Blowfish
     /// Initialize a new blowfish.
     /// </summary>
     /// <param name="key">The key to use.</param>
-    public Blowfish(IEnumerable<byte> key)
+    public Blowfish(ReadOnlySpan<byte> key)
     {
         // Execute key schedule
-        foreach (var (i, keyFragment) in WrappingUInt32(key, P.Length))
+        Span<byte> keyCopy = stackalloc byte[sizeof(uint)];
+        key.CopyTo(keyCopy);
+        
+        // The key bytes need to be reversed when the P-array is initialized.
+        keyCopy.Reverse();
+        var keyExt = BitConverter.ToUInt32(keyCopy);
+        for (var i = 0; i < P.Length; i++)
         {
-            GetPBoxElementRef(i) ^= keyFragment;
+            GetPBoxElementRef(i) ^= keyExt;
         }
 
         var x = 0UL;
@@ -374,37 +380,5 @@ public sealed class Blowfish
 
         // Parallel XOR
         return x ^ p0;
-    }
-
-    private static IEnumerable<TSource> Cycle<TSource>(IEnumerable<TSource> source)
-    {
-        while (true)
-            foreach (var t in source)
-                yield return t;
-    }
-
-    private static IEnumerable<(int, uint)> WrappingUInt32(IEnumerable<byte> source, int count)
-    {
-        // Executing this enumerator takes a couple hundred milliseconds on 20k file
-        // entries, and will only scale up on the full dataset. It should be replaced
-        // eventually. Additionally, this factors into garbage collection due to the
-        // iterator allocation, for another few hundred milliseconds.
-        using var enumerator = Cycle(source).GetEnumerator();
-
-        for (var i = 0; i < count; i++)
-        {
-            var n = 0u;
-
-            for (var j = 0; j < 4 && enumerator.MoveNext(); j++)
-            {
-                // This Blowfish implementation was written for the FFXIV launcher, and
-                // casts enumerator.Current to an sbyte deliberately; Square Enix rolled
-                // their own Blowfish implementation and incorrectly used a signed byte
-                // here. I have removed that, here.
-                n = (n << 8) | enumerator.Current;
-            }
-
-            yield return (i, n);
-        }
     }
 }
