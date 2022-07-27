@@ -1,24 +1,23 @@
 ﻿using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using ComputeSharp;
 
 // ReSharper disable ForCanBeConvertedToForeach
 
 namespace PhotonBlue.Cryptography;
 
-internal sealed class Blowfish
+public sealed class Blowfish
 {
     #region P-Array and S-Boxes
 
-    private readonly uint[] p =
+    public readonly uint[] P =
     {
         0x243f6a88, 0x85a308d3, 0x13198a2e, 0x03707344, 0xa4093822, 0x299f31d0,
         0x082efa98, 0xec4e6c89, 0x452821e6, 0x38d01377, 0xbe5466cf, 0x34e90c6c,
         0xc0ac29b7, 0xc97c50dd, 0x3f84d5b5, 0xb5470917, 0x9216d5d9, 0x8979fb1b,
     };
 
-    private readonly uint[][] s =
+    public readonly uint[][] S =
     {
         new uint[]
         {
@@ -208,24 +207,6 @@ internal sealed class Blowfish
 
     #endregion
 
-    public struct GpuHandle : IDisposable
-    {
-        public ReadOnlyBuffer<uint> S0;
-        public ReadOnlyBuffer<uint> S1;
-        public ReadOnlyBuffer<uint> S2;
-        public ReadOnlyBuffer<uint> S3;
-        public ConstantBuffer<uint> P;
-
-        public readonly void Dispose()
-        {
-            S0.Dispose();
-            S1.Dispose();
-            S2.Dispose();
-            S3.Dispose();
-            P.Dispose();
-        }
-    }
-
     private const int Rounds = 16;
 
     /// <summary>
@@ -235,38 +216,26 @@ internal sealed class Blowfish
     public Blowfish(IEnumerable<byte> key)
     {
         // Execute key schedule
-        foreach (var (i, keyFragment) in WrappingUInt32(key, p.Length))
+        foreach (var (i, keyFragment) in WrappingUInt32(key, P.Length))
         {
             GetPBoxElementRef(i) ^= keyFragment;
         }
 
         var x = 0UL;
         ref var p0 = ref Unsafe.As<uint, ulong>(ref GetPBoxElementRef(0));
-        for (var i = 0; i < p.Length / 2; i++)
+        for (var i = 0; i < P.Length / 2; i++)
         {
             x = Unsafe.Add(ref p0, i) = Encrypt(ref p0, x);
         }
 
-        for (var i = 0; i < s.Length; i++)
+        for (var i = 0; i < S.Length; i++)
         {
-            ref var si = ref Unsafe.As<uint, ulong>(ref s[i][0]);
-            for (var j = 0; j < s[0].Length / 2; j++)
+            ref var si = ref Unsafe.As<uint, ulong>(ref S[i][0]);
+            for (var j = 0; j < S[0].Length / 2; j++)
             {
                 x = Unsafe.Add(ref si, j) = Encrypt(ref p0, x);
             }
         }
-    }
-
-    public GpuHandle AllocateToGraphicsDevice(GraphicsDevice device)
-    {
-        return new GpuHandle
-        {
-            S0 = device.AllocateReadOnlyBuffer(s[0]),
-            S1 = device.AllocateReadOnlyBuffer(s[1]),
-            S2 = device.AllocateReadOnlyBuffer(s[2]),
-            S3 = device.AllocateReadOnlyBuffer(s[3]),
-            P = device.AllocateConstantBuffer(p),
-        };
     }
 
     public byte[] Encrypt(byte[] data)
@@ -293,7 +262,7 @@ internal sealed class Blowfish
     public void DecryptStandard(Span<byte> data)
     {
         Span<uint> pCopy = stackalloc uint[18];
-        p.CopyTo(pCopy);
+        P.CopyTo(pCopy);
 
         ref var p0 = ref Unsafe.As<uint, ulong>(ref pCopy[0]);
         for (var i = 0; i < data.Length; i += 8)
@@ -306,7 +275,7 @@ internal sealed class Blowfish
     public void Decrypt(Span<byte> data)
     {
         Span<uint> pCopy = stackalloc uint[18];
-        p.CopyTo(pCopy);
+        P.CopyTo(pCopy);
 
         // SEGA seems to have rolled their own Blowfish implementation which ignores
         // the last (8 - data.Length % 8) bytes.
@@ -328,14 +297,14 @@ internal sealed class Blowfish
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private ref uint GetPBoxElementRef(nint index)
     {
-        ref var data = ref MemoryMarshal.GetArrayDataReference(p);
+        ref var data = ref MemoryMarshal.GetArrayDataReference(P);
         return ref Unsafe.Add(ref data, index);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private ref uint GetSBoxElementRef(nuint outer, nuint inner)
     {
-        ref var sp = ref MemoryMarshal.GetArrayDataReference(s);
+        ref var sp = ref MemoryMarshal.GetArrayDataReference(S);
         ref var sx = ref Unsafe.Add(ref sp, outer);
         ref var data = ref MemoryMarshal.GetArrayDataReference(sx);
         return ref Unsafe.Add(ref data, inner);

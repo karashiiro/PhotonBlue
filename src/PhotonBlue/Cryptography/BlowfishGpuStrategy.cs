@@ -13,12 +13,17 @@ public class BlowfishGpuStrategy : BlowfishStrategy
     private readonly ReadWriteBuffer<uint2> _gpuBuffer;
     private readonly ReadBackBuffer<uint2> _gpuDownload;
     private readonly Blowfish _blowfish;
-    private readonly Blowfish.GpuHandle _boxes;
+    private readonly BlowfishGpuHandle _boxes;
+    
+    private bool _disposed;
+    
+    // TODO: Set up dependency injection or something
+    private static readonly BlowfishGpuBufferPool GpuPool = new();
 
     public BlowfishGpuStrategy(IEnumerable<byte> key, int bufferSize)
     {
         _blowfish = new Blowfish(key);
-        _boxes = _blowfish.AllocateToGraphicsDevice(GraphicsDevice.Default);
+        _boxes = GpuPool.Acquire(_blowfish);
         _gpuBuffer = GraphicsDevice.Default.AllocateReadWriteBuffer<uint2>(bufferSize / 8);
         _gpuUpload = GraphicsDevice.Default.AllocateUploadBuffer<uint2>(bufferSize / 8);
         _gpuDownload = GraphicsDevice.Default.AllocateReadBackBuffer<uint2>(bufferSize / 8);
@@ -62,14 +67,16 @@ public class BlowfishGpuStrategy : BlowfishStrategy
 
     protected override void Dispose(bool disposing)
     {
-        base.Dispose(disposing);
-
-        if (disposing)
+        if (disposing && !_disposed)
         {
             _gpuUpload.Dispose();
             _gpuBuffer.Dispose();
             _gpuDownload.Dispose();
-            _boxes.Dispose();
+            GpuPool.Release(_boxes);
+            
+            _disposed = true;
         }
+        
+        base.Dispose(disposing);
     }
 }
