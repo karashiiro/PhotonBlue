@@ -234,6 +234,9 @@ public class IceV4File : IceFile
     /// <param name="inputStream">The input stream of decrypted group data.</param>
     private Stream DecompressGroup(GroupHeader group, Stream inputStream)
     {
+        // Garbage collection times can add up in this function, likely because of
+        // the large arrays allocated in the Kraken branch. Kraken decompression
+        // likely needs to be adapted to stream processing to fix this.
         switch (group.CompressedSize)
         {
             case > 0 when Header.Flags.HasFlag(IceFileFlags.Kraken):

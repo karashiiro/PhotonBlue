@@ -416,6 +416,10 @@ internal sealed class Blowfish
 
     private static IEnumerable<(int, uint)> WrappingUInt32(IEnumerable<byte> source, int count)
     {
+        // Executing this enumerator takes a couple hundred milliseconds on 20k file
+        // entries, and will only scale up on the full dataset. It should be replaced
+        // eventually. Additionally, this factors into garbage collection due to the
+        // iterator allocation, for another few hundred milliseconds.
         using var enumerator = Cycle(source).GetEnumerator();
 
         for (var i = 0; i < count; i++)

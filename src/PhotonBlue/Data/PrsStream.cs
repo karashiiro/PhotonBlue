@@ -392,6 +392,11 @@ public class PrsStream : Stream
     /// <summary>
     /// Reads the next decompression instruction from the stream.
     /// </summary>
+    /// <returns>
+    /// A tuple of (instruction, offset, size), where the instruction is described
+    /// in <see cref="PrsInstruction"/>. The offset and size are 0 if the instruction
+    /// isn't a pointer.
+    /// </returns>
     private (PrsInstruction, int, int) GetNextInstruction()
     {
         if (GetControlBit())
