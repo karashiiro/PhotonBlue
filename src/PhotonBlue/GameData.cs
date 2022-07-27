@@ -32,7 +32,7 @@ public class GameData
         }
 
         FileHandleManager = new FileHandleManager();
-        Index = new GameFileIndexer(FileHandleManager);
+        Index = new GameFileIndexer();
     }
 
     /// <summary>

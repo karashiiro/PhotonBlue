@@ -5,16 +5,14 @@ namespace PhotonBlue;
 
 public class GameFileIndexer : IGameFileIndexer
 {
-    private readonly FileHandleManager _fileHandleManager;
     private readonly List<(BaseFileHandle, string, string?, string)> _files;
 
     public int DiskFilesRead { get; private set; }
     
     public int DiskFileCount => _files.Count;
 
-    public GameFileIndexer(FileHandleManager fileHandleManager)
+    public GameFileIndexer()
     {
-        _fileHandleManager = fileHandleManager;
         _files = new List<(BaseFileHandle, string, string?, string)>();
     }
 
@@ -77,15 +75,12 @@ public class GameFileIndexer : IGameFileIndexer
                 // Currently only processing ICE files; will add more once this works
                 if (h is FileHandle<IceV4File> handle)
                 {
-                    while (h.State != BaseFileHandle.FileState.Loaded)
+                    h.Reset.Wait();
+                    
+                    if (h.State == BaseFileHandle.FileState.Error)
                     {
-                        if (h.State == BaseFileHandle.FileState.Error)
-                        {
-                            DiskFilesRead++;
-                            return Enumerable.Empty<ParsedFilePath?>();
-                        }
-
-                        Thread.Yield();
+                        DiskFilesRead++;
+                        return Enumerable.Empty<ParsedFilePath?>();
                     }
 
                     DiskFilesRead++;

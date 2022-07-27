@@ -12,10 +12,13 @@ public abstract class BaseFileHandle
 
     internal BaseFileHandle(string path)
     {
+        Reset = new ManualResetEventSlim();
+        State = FileState.None;
         Path = path;
     }
 
-    public FileState State { get; protected set; } = FileState.None;
+    public ManualResetEventSlim Reset { get; }
+    public FileState State { get; protected set; }
     public Exception? LoadException { get; protected set; }
     protected readonly string Path;
     protected object? Instance;

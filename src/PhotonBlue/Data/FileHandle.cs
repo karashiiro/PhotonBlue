@@ -20,12 +20,15 @@ public class FileHandle<T> : BaseFileHandle where T : FileResource, new()
             var file = FileResource.FromStream<T>(buffer);
             file.LoadFile();
 
-            State = FileState.Loaded;
-            Instance = file;
+            CompleteLoad(file);
         }
         catch (Exception e)
         {
             HandleException(e);
+        }
+        finally
+        {
+            CleanupLoad();
         }
     }
 
@@ -41,12 +44,15 @@ public class FileHandle<T> : BaseFileHandle where T : FileResource, new()
             var file = FileResource.FromStream<T>(buffer);
             file.LoadHeadersOnly();
 
-            State = FileState.Loaded;
-            Instance = file;
+            CompleteLoad(file);
         }
         catch (Exception e)
         {
             HandleException(e);
+        }
+        finally
+        {
+            CleanupLoad();
         }
     }
 
@@ -54,6 +60,17 @@ public class FileHandle<T> : BaseFileHandle where T : FileResource, new()
     {
         State = FileState.Loading;
         LoadException = null;
+    }
+
+    private void CleanupLoad()
+    {
+        Reset.Set();
+    }
+
+    private void CompleteLoad(T file)
+    {
+        Instance = file;
+        State = FileState.Loaded;
     }
 
     private void HandleException(Exception e)
