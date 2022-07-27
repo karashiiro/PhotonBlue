@@ -5,7 +5,8 @@ namespace PhotonBlue.Cryptography;
 
 public sealed class BlowfishGpuBufferPool : IDisposable
 {
-    private const int Concurrency = 8;
+    private const int MaxConcurrency = 8;
+    private const int MinConcurrency = 2;
 
     private readonly ConcurrentQueue<BlowfishGpuHandle> _items;
     private readonly SemaphoreSlim _semaphore;
@@ -13,7 +14,7 @@ public sealed class BlowfishGpuBufferPool : IDisposable
     public BlowfishGpuBufferPool()
     {
         _items = new ConcurrentQueue<BlowfishGpuHandle>();
-        _semaphore = new SemaphoreSlim(Concurrency, Concurrency);
+        _semaphore = new SemaphoreSlim(MaxConcurrency, MaxConcurrency);
     }
 
     public BlowfishGpuHandle Acquire(Blowfish state)
@@ -44,7 +45,7 @@ public sealed class BlowfishGpuBufferPool : IDisposable
 
     public void Release(BlowfishGpuHandle handle)
     {
-        if (_semaphore.CurrentCount > Concurrency / 4)
+        if (_semaphore.CurrentCount > MinConcurrency)
         {
             handle.Dispose();
         }

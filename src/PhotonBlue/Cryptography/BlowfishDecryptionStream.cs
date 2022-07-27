@@ -33,17 +33,16 @@ internal sealed class BlowfishDecryptionStream : Stream
     private long _length;
     private long _position;
 
-    private const int GpuBufferSize = 262144;
-    private const int CpuBufferSize = 8;
+    private const int GpuMaxBufferSize = 524288; // 512kB
+    private const int CpuMaxBufferSize = 8;
 
     public BlowfishDecryptionStream(Stream data, IEnumerable<byte> key)
     {
         // This does well on small files and on large files that we read the entirety of.
         // In the worst case, we select the GPU decryption strategy for a large file and then
         // only read a small amount of data (think large ICE archives that we only read headers
-        // from, with only one file entry). More analysis needs to be done to determine the
-        // optimal inflection point here.
-        var baseBufferSize = data.Length > BlowfishGpuStrategy.RecommendedThreshold ? GpuBufferSize : CpuBufferSize;
+        // from, with only one file entry).
+        var baseBufferSize = data.Length > BlowfishGpuStrategy.RecommendedThreshold ? GpuMaxBufferSize : CpuMaxBufferSize;
         var bufferSize = Math.Min(BitOperations.RoundUpToPowerOf2(Convert.ToUInt64(data.Length)), Convert.ToUInt64(baseBufferSize));
         _strategy = data.Length > BlowfishGpuStrategy.RecommendedThreshold
             ? new BlowfishGpuStrategy(key, Convert.ToInt32(bufferSize))
