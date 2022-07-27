@@ -137,8 +137,13 @@ public class PrsStream : Stream
             // Resume pending instruction
             var nRead = _currentInstruction.Read(_lookaround, _lookaroundIndex, buffer, outIndex, count);
             outIndex += nRead;
-            _lookaroundIndex = (_lookaroundIndex + nRead) % _lookaround.Length;
             _bytesRead += nRead;
+
+            _lookaroundIndex += nRead;
+            if (_lookaroundIndex > _lookaround.Length)
+            {
+                _lookaroundIndex %= _lookaround.Length;
+            }
 
             if (_currentInstruction.BytesRead == _currentInstruction.Size)
             {
@@ -209,8 +214,13 @@ public class PrsStream : Stream
             // Resume pending instruction
             var nRead = _currentInstruction.Skip(_lookaround, _lookaroundIndex, count);
             outIndex += nRead;
-            _lookaroundIndex = (_lookaroundIndex + nRead) % _lookaround.Length;
             _bytesRead += nRead;
+
+            _lookaroundIndex += nRead;
+            if (_lookaroundIndex > _lookaround.Length)
+            {
+                _lookaroundIndex %= _lookaround.Length;
+            }
 
             if (_currentInstruction.BytesRead == _currentInstruction.Size)
             {
@@ -284,10 +294,15 @@ public class PrsStream : Stream
 
         _bytesRead += toRead;
 
-        var loadIndex = (_lookaroundIndex + offset) % _lookaround.Length;
+        var loadIndex = _lookaroundIndex + offset;
         if (loadIndex < 0)
         {
             loadIndex += _lookaround.Length;
+        }
+
+        if (loadIndex > _lookaround.Length)
+        {
+            loadIndex %= _lookaround.Length;
         }
 
         // Copy a run from the lookaround buffer into the output buffer.
@@ -338,10 +353,15 @@ public class PrsStream : Stream
 
         _bytesRead += toSeek;
 
-        var loadIndex = (_lookaroundIndex + offset) % _lookaround.Length;
+        var loadIndex = _lookaroundIndex + offset;
         if (loadIndex < 0)
         {
             loadIndex += _lookaround.Length;
+        }
+
+        if (loadIndex > _lookaround.Length)
+        {
+            loadIndex %= _lookaround.Length;
         }
 
         for (var index = 0; index < toSeek; index++)
