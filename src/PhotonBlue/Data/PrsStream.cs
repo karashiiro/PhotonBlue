@@ -321,7 +321,7 @@ public class PrsStream : Stream
         }
 
         // Copy a run from the lookaround buffer into the output buffer.
-        if (CanFastCopy(loadIndex, toRead))
+        if (CanFastCopy(_lookaroundIndex, _lookaround.Length, loadIndex, toRead))
         {
             // If the source region and the destination region don't overlap, and neither region
             // loops around to the start of the array, we can just do a simple array copy, which
@@ -393,7 +393,7 @@ public class PrsStream : Stream
             loadIndex %= _lookaround.Length;
         }
 
-        if (CanFastCopy(loadIndex, toSeek))
+        if (CanFastCopy(_lookaroundIndex, _lookaround.Length, loadIndex, toSeek))
         {
             var copySrc = _lookaround.AsSpan(loadIndex, toSeek);
             copySrc.CopyTo(_lookaround.AsSpan(_lookaroundIndex, toSeek));
@@ -432,12 +432,14 @@ public class PrsStream : Stream
     /// Returns whether or not it is safe to perform a contiguous copy within the
     /// lookaround buffer at the provided index.
     /// </summary>
+    /// <param name="lookaroundIndex">The lookaround buffer index.</param>
+    /// <param name="lookaroundLength">The length of the lookaround buffer.</param>
     /// <param name="loadIndex">The source index to copy from.</param>
     /// <param name="size">The length of the data to be copied.</param>
-    private bool CanFastCopy(int loadIndex, int size)
+    private static bool CanFastCopy(int lookaroundIndex, int lookaroundLength, int loadIndex, int size)
     {
-        return Math.Max(_lookaroundIndex, loadIndex) + size < _lookaround.Length &&
-            Math.Abs(_lookaroundIndex - loadIndex) > size;
+        return Math.Max(lookaroundIndex, loadIndex) + size < lookaroundLength &&
+            Math.Abs(lookaroundIndex - loadIndex) > size;
     }
 
     /// <summary>
