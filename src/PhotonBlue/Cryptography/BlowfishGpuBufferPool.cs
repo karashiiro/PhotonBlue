@@ -7,8 +7,10 @@ public sealed class BlowfishGpuBufferPool : IDisposable
 {
     public const int DataBufferSize = 524288;
     
-    private const int MaxConcurrency = 8;
+    private const int MaxConcurrency = 16;
     private const int MinConcurrency = 2;
+    
+    private static readonly GraphicsDevice Gpu = GraphicsDevice.Default;
 
     private readonly ConcurrentQueue<BlowfishGpuHandle> _items;
     private readonly SemaphoreSlim _semaphore;
@@ -35,12 +37,12 @@ public sealed class BlowfishGpuBufferPool : IDisposable
 
         handle = new BlowfishGpuHandle
         {
-            S0 = GraphicsDevice.Default.AllocateConstantBuffer(state.S[0]),
-            S1 = GraphicsDevice.Default.AllocateConstantBuffer(state.S[1]),
-            S2 = GraphicsDevice.Default.AllocateConstantBuffer(state.S[2]),
-            S3 = GraphicsDevice.Default.AllocateConstantBuffer(state.S[3]),
-            P = GraphicsDevice.Default.AllocateConstantBuffer(state.P),
-            Data = GraphicsDevice.Default.AllocateReadWriteBuffer<uint2>(DataBufferSize / sizeof(uint2)),
+            S0 = Gpu.AllocateConstantBuffer(state.S[0]),
+            S1 = Gpu.AllocateConstantBuffer(state.S[1]),
+            S2 = Gpu.AllocateConstantBuffer(state.S[2]),
+            S3 = Gpu.AllocateConstantBuffer(state.S[3]),
+            P = Gpu.AllocateConstantBuffer(state.P),
+            Data = Gpu.AllocateReadWriteBuffer<uint2>(DataBufferSize / sizeof(uint2)),
         };
 
         return handle;
