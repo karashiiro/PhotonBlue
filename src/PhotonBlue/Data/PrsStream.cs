@@ -75,6 +75,21 @@ public class PrsStream : Stream
         Literal,
         Pointer,
     }
+    
+    private struct ControlByte
+    {
+        public byte Data;
+
+        public ControlByte(byte data)
+        {
+            Data = data;
+        }
+
+        public readonly bool GetBit(int offset)
+        {
+            return (Data & (1 << offset)) > 0;
+        }
+    }
 
     private const int MinLongCopyLength = 10;
 
@@ -89,7 +104,7 @@ public class PrsStream : Stream
         set => throw new NotSupportedException();
     }
 
-    private byte _ctrlByte;
+    private ControlByte _ctrlByte;
     private int _ctrlByteCounter;
 
     // An internal buffer for maintaining some of the decompressed data
@@ -109,7 +124,7 @@ public class PrsStream : Stream
     public PrsStream(Stream input)
     {
         _ctrlByteCounter = 8;
-        _ctrlByte = 0;
+        _ctrlByte = new ControlByte(0);
 
         _lookaround = new byte[0x1FFF];
         _lookaroundIndex = 0;
@@ -492,11 +507,11 @@ public class PrsStream : Stream
     {
         if (_ctrlByteCounter == 8)
         {
-            _ctrlByte = (byte)GetNextByte();
+            _ctrlByte.Data = (byte)GetNextByte();
             _ctrlByteCounter = 0;
         }
 
-        return (_ctrlByte & (1 << _ctrlByteCounter++)) > 0;
+        return _ctrlByte.GetBit(_ctrlByteCounter++);
     }
 
     /// <summary>
