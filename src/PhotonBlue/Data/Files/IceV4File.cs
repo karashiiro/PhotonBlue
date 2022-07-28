@@ -178,7 +178,7 @@ public class IceV4File : IceFile
 
     private (Stream, DisposableBundle) HandleGroupExtraction(GroupHeader group, IReadOnlyList<uint> keys, Stream data)
     {
-        return data.Length == 0 ? (data, new DisposableBundle()) : DecodeGroup(group, keys, data);
+        return data.Length == 0 ? (data, DisposableBundle.Empty) : DecodeGroup(group, keys, data);
     }
 
     private const int SecondPassThreshold = 102400;
