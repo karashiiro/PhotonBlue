@@ -321,24 +321,38 @@ public class PrsStream : Stream
         }
 
         // Copy a run from the lookaround buffer into the output buffer.
-        for (var i = 0; i < buffer.Length; i++)
+        if (CanFastCopy(loadIndex, toRead))
         {
-            // Read data from the lookaround buffer.
-            buffer[i] = _lookaround[loadIndex];
-
-            // Read through to the lookaround buffer.
-            _lookaround[_lookaroundIndex++] = _lookaround[loadIndex++];
-
-            // Doing these modulus assignments every loop is much slower
-            // than doing comparisons every loop instead.
-            if (loadIndex == _lookaround.Length)
+            // If the source region and the destination region don't overlap, and neither region
+            // loops around to the start of the array, we can just do a simple array copy, which
+            // is much faster than executing the for loop.
+            var copySrc = _lookaround.AsSpan(loadIndex, toRead);
+            copySrc.CopyTo(buffer);
+            copySrc.CopyTo(_lookaround.AsSpan(_lookaroundIndex, toRead));
+            _lookaroundIndex += toRead;
+            loadIndex += toRead;
+        }
+        else
+        {
+            for (var i = 0; i < buffer.Length; i++)
             {
-                loadIndex %= _lookaround.Length;
-            }
+                // Read data from the lookaround buffer.
+                buffer[i] = _lookaround[loadIndex];
 
-            if (_lookaroundIndex == _lookaround.Length)
-            {
-                _lookaroundIndex %= _lookaround.Length;
+                // Read through to the lookaround buffer.
+                _lookaround[_lookaroundIndex++] = _lookaround[loadIndex++];
+
+                // Doing these modulus assignments every loop is much slower
+                // than doing comparisons every loop instead.
+                if (loadIndex == _lookaround.Length)
+                {
+                    loadIndex %= _lookaround.Length;
+                }
+
+                if (_lookaroundIndex == _lookaround.Length)
+                {
+                    _lookaroundIndex %= _lookaround.Length;
+                }
             }
         }
 
@@ -379,18 +393,28 @@ public class PrsStream : Stream
             loadIndex %= _lookaround.Length;
         }
 
-        for (var index = 0; index < toSeek; index++)
+        if (CanFastCopy(loadIndex, toSeek))
         {
-            _lookaround[_lookaroundIndex++] = _lookaround[loadIndex++];
-
-            if (loadIndex == _lookaround.Length)
+            var copySrc = _lookaround.AsSpan(loadIndex, toSeek);
+            copySrc.CopyTo(_lookaround.AsSpan(_lookaroundIndex, toSeek));
+            _lookaroundIndex += toSeek;
+            loadIndex += toSeek;
+        }
+        else
+        {
+            for (var index = 0; index < toSeek; index++)
             {
-                loadIndex %= _lookaround.Length;
-            }
+                _lookaround[_lookaroundIndex++] = _lookaround[loadIndex++];
 
-            if (_lookaroundIndex == _lookaround.Length)
-            {
-                _lookaroundIndex %= _lookaround.Length;
+                if (loadIndex == _lookaround.Length)
+                {
+                    loadIndex %= _lookaround.Length;
+                }
+
+                if (_lookaroundIndex == _lookaround.Length)
+                {
+                    _lookaroundIndex %= _lookaround.Length;
+                }
             }
         }
 
@@ -402,6 +426,18 @@ public class PrsStream : Stream
 
         Debug.Assert(_bytesRead % _lookaround.Length == _lookaroundIndex,
             "Bytes read and lookaround index are not synced.");
+    }
+
+    /// <summary>
+    /// Returns whether or not it is safe to perform a contiguous copy within the
+    /// lookaround buffer at the provided index.
+    /// </summary>
+    /// <param name="loadIndex">The source index to copy from.</param>
+    /// <param name="size">The length of the data to be copied.</param>
+    private bool CanFastCopy(int loadIndex, int size)
+    {
+        return Math.Max(_lookaroundIndex, loadIndex) + size < _lookaround.Length &&
+            Math.Abs(_lookaroundIndex - loadIndex) > size;
     }
 
     /// <summary>
