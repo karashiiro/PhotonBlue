@@ -16,8 +16,7 @@ public class FileHandle<T> : BaseFileHandle where T : FileResource, new()
             using var mmf =
                 MemoryMappedFile.CreateFromFile(Path, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
             using var data = mmf.CreateViewStream(0, 0, MemoryMappedFileAccess.Read);
-            using var buffer = new BufferedStream(data);
-            var file = FileResource.FromStream<T>(buffer);
+            var file = FileResource.FromStream<T>(data);
             file.LoadFile();
 
             CompleteLoad(file);
