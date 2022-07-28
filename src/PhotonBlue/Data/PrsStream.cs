@@ -18,6 +18,8 @@ public class PrsStream : Stream
             int bufferCount)
         {
             var toRead = Math.Min(bufferCount, Size - BytesRead);
+            BytesRead += toRead;
+            
             var copyTarget = buffer.AsSpan(bufferIndex, toRead);
             for (var i = 0; i < copyTarget.Length; i++)
             {
@@ -26,8 +28,6 @@ public class PrsStream : Stream
 
                 // Read through to the lookaround buffer.
                 lookaround[lookaroundOffset++] = lookaround[LoadIndex++];
-                LoadIndex %= lookaround.Count;
-                lookaroundOffset %= lookaround.Count;
 
                 // Doing these modulus assignments every loop is much slower
                 // than doing comparisons every loop instead.
@@ -41,8 +41,7 @@ public class PrsStream : Stream
                     lookaroundOffset %= lookaround.Count;
                 }
             }
-
-            BytesRead += toRead;
+            
             return toRead;
         }
 

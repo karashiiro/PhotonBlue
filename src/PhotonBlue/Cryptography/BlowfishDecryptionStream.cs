@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Buffers;
+using System.Diagnostics;
 using System.Numerics;
 
 namespace PhotonBlue.Cryptography;
@@ -91,10 +92,8 @@ internal sealed class BlowfishDecryptionStream : Stream
         // fill it with data. If this would read more data than the amount of remaining data,
         // then just read all of the remaining data.
         var nToRead = Convert.ToInt32(RoundBufferSize(Math.Min(nLeft, _length - _position)));
-        // Not sure how to avoid this allocation, but garbage collection related to it does
-        // add up. This can't be allocated on the stack safely; the sizes can easily exceed
-        // 1MB, which risks overflowing the stack.
-        var readBuf = new byte[nToRead];
+        var readBuf = ArrayPool<byte>.Shared.Rent(nToRead);
+        MicroDisposable<byte[]>.Create(readBuf, o => ArrayPool<byte>.Shared.Return(o));
         var nRead = _stream.Read(readBuf, 0, readBuf.Length);
         _position += nRead;
 

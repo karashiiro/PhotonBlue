@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Buffers;
+using System.Diagnostics;
 using PhotonBlue.Attributes;
 using PhotonBlue.Cryptography;
 using PhotonBlue.Extensions;
@@ -136,7 +137,7 @@ public class IceV4File : IceFile
 
         // Extract the first group
         var (group1Stream, junk1) = HandleGroupExtraction(Group1, _keys.GroupDataKeys[0], partitionedStream);
-        using var junk1Deferred = DeferDispose(junk1);
+        using var junk1Deferred = MicroDisposable<DisposableBundle>.Create(junk1, o => o.Dispose());
         
         Group1Entries = UnpackGroupHeadersOnly(0, group1FileCount, totalFiles, group1Stream);
 
@@ -147,7 +148,7 @@ public class IceV4File : IceFile
 
             // Extract the next group
             var (group2Stream, junk2) = HandleGroupExtraction(Group2, _keys.GroupDataKeys[1], partitionedStream);
-            using var junk2Deferred = DeferDispose(junk2);
+            using var junk2Deferred = MicroDisposable<DisposableBundle>.Create(junk2, o => o.Dispose());
             
             Group2Entries = UnpackGroupHeadersOnly(group1FileCount, group2FileCount, totalFiles, group2Stream);
         }
@@ -157,7 +158,7 @@ public class IceV4File : IceFile
     {
         // Extract the first group
         var (group1Stream, junk1) = HandleGroupExtraction(Group1, _keys.GroupDataKeys[0], partitionedStream);
-        using var junk1Deferred = DeferDispose(junk1);
+        using var junk1Deferred = MicroDisposable<DisposableBundle>.Create(junk1, o => o.Dispose());
         
         Group1Entries = UnpackGroup(Group1, group1Stream);
 
@@ -166,14 +167,9 @@ public class IceV4File : IceFile
 
         // Extract the next group
         var (group2Stream, junk2) = HandleGroupExtraction(Group2, _keys.GroupDataKeys[1], partitionedStream);
-        using var junk2Deferred = DeferDispose(junk2);
+        using var junk2Deferred = MicroDisposable<DisposableBundle>.Create(junk2, o => o.Dispose());
         
         Group2Entries = UnpackGroup(Group2, group2Stream);
-    }
-
-    private static T DeferDispose<T>(T o) where T : IDisposable
-    {
-        return o;
     }
 
     private (Stream, DisposableBundle) HandleGroupExtraction(GroupHeader group, IReadOnlyList<uint> keys, Stream data)
@@ -192,9 +188,6 @@ public class IceV4File : IceFile
     private (Stream, DisposableBundle) DecodeGroup(GroupHeader group, IReadOnlyList<uint> keys, Stream data)
     {
         var (decryptStream, junk) = PrepareGroupDecryption(data, keys);
-        // We use the input buffer as a scratch buffer for reading in the
-        // decrypted data. This doesn't cause any decryption issues since
-        // we're not reading the data more than once.
         return (DecompressGroup(group, decryptStream), junk);
     }
 
@@ -242,7 +235,9 @@ public class IceV4File : IceFile
             case > 0 when Header.Flags.HasFlag(IceFileFlags.Kraken):
             {
                 // Kraken decompression
-                var scratch = new byte[group.GetStoredSize()];
+                var scratch = ArrayPool<byte>.Shared.Rent(Convert.ToInt32(group.GetStoredSize()));
+                using var scratchDeferred = MicroDisposable<byte[]>.Create(scratch, o => ArrayPool<byte>.Shared.Return(o));
+                
                 var nRead1 = inputStream.Read(scratch, 0, scratch.Length);
                 Debug.Assert(nRead1 == scratch.Length, "Decryption gave unexpected decrypted data size.");
 
@@ -250,6 +245,7 @@ public class IceV4File : IceFile
                 var nRead2 = Kraken.Decompress(scratch, group.CompressedSize, result, group.RawSize);
                 Debug.Assert(nRead2 != -1, "Kraken decompression failed due to an error.");
                 Debug.Assert(nRead2 == result.Length, "Kraken decompression gave unexpected uncompressed size.");
+                
                 return new MemoryStream(result);
             }
             case > 0:
