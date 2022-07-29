@@ -188,7 +188,7 @@ public class IceV4File : IceFile
     private (Stream, DisposableBundle) DecodeGroup(GroupHeader group, IReadOnlyList<uint> keys, Stream data)
     {
         var (decryptStream, junk) = PrepareGroupDecryption(data, keys);
-        return (DecompressGroup(group, decryptStream), junk);
+        return (DecompressGroup(group, decryptStream, junk), junk);
     }
 
     /// <summary>
@@ -225,11 +225,9 @@ public class IceV4File : IceFile
     /// </summary>
     /// <param name="group">The group header.</param>
     /// <param name="inputStream">The input stream of decrypted group data.</param>
-    private Stream DecompressGroup(GroupHeader group, Stream inputStream)
+    /// <param name="junk">A bundle of junk to be disposed of at the end of the extraction process.</param>
+    private Stream DecompressGroup(GroupHeader group, Stream inputStream, DisposableBundle junk)
     {
-        // Garbage collection times can add up in this function, likely because of
-        // the large arrays allocated in the Kraken branch. Kraken decompression
-        // likely needs to be adapted to stream processing to fix this.
         switch (group.CompressedSize)
         {
             case > 0 when Header.Flags.HasFlag(IceFileFlags.Kraken):
@@ -241,7 +239,9 @@ public class IceV4File : IceFile
                 var nRead1 = inputStream.Read(scratch, 0, scratch.Length);
                 Debug.Assert(nRead1 == scratch.Length, "Decryption gave unexpected decrypted data size.");
 
-                var result = new byte[group.RawSize];
+                var result = ArrayPool<byte>.Shared.Rent(Convert.ToInt32(group.RawSize));
+                junk.Objects.Add(MicroDisposable<byte[]>.Create(result, o => ArrayPool<byte>.Shared.Return(o)));
+                
                 var nRead2 = Kraken.Decompress(scratch, group.CompressedSize, result, group.RawSize);
                 Debug.Assert(nRead2 != -1, "Kraken decompression failed due to an error.");
                 Debug.Assert(nRead2 == result.Length, "Kraken decompression gave unexpected uncompressed size.");
