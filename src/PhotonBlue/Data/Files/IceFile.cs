@@ -83,7 +83,7 @@ public class IceFile : FileResource
         public byte[] Reserved4; // 0x20 bytes
         public byte[] FileNameRaw;
 
-        public string FileName => Encoding.UTF8.GetString(FileNameRaw).TrimEnd('\u0000');
+        public string FileName => new(Encoding.UTF8.GetString(FileNameRaw).AsSpan().TrimEnd('\u0000'));
 
         public static FileEntryHeader Read(BinaryReader reader)
         {
