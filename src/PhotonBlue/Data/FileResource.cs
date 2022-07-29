@@ -43,7 +43,7 @@ public abstract class FileResource
         if (magicAttr != null)
         {
             var magic = file.Reader.ReadBytes(4);
-            var magicStr = Encoding.UTF8.GetString(magic).TrimEnd('\u0000');
+            var magicStr = new string(Encoding.UTF8.GetString(magic).AsSpan().TrimEnd('\u0000'));
             if (magicStr == magicAttr.Value)
             {
                 file.BaseStream.Seek(0, SeekOrigin.Begin);

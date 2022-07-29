@@ -62,7 +62,11 @@ public class IceV4File : IceFile
     {
         // Read the ICE archive headers
         base.LoadFile();
-        Debug.Assert(Header.Version == 4, "Incorrect ICE version detected!");
+        if (Header.Version != 4)
+        {
+            throw new InvalidOperationException($"Incorrect ICE version detected; expected 4, got {Header.Version}.");
+        }
+        
         LoadGroupHeaders();
 
         Debug.Assert(Reader != null);
@@ -84,7 +88,11 @@ public class IceV4File : IceFile
     {
         // Read the ICE archive headers
         base.LoadHeadersOnly();
-        Debug.Assert(Header.Version == 4, "Incorrect ICE version detected!");
+        if (Header.Version != 4)
+        {
+            throw new InvalidOperationException($"Incorrect ICE version detected; expected 4, got {Header.Version}.");
+        }
+        
         LoadGroupHeaders();
 
         Debug.Assert(Reader != null);

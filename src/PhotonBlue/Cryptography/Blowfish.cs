@@ -222,7 +222,7 @@ public sealed class Blowfish : IDisposable
     public Blowfish(ReadOnlySpan<byte> key)
     {
         P = ArrayPool<uint>.Shared.Rent(PInitial.Length);
-        S = ArrayPool<uint[]>.Shared.Rent(SInitial.Length);
+        S = new uint[SInitial.Length][];
         S[0] = ArrayPool<uint>.Shared.Rent(SInitial[0].Length);
         S[1] = ArrayPool<uint>.Shared.Rent(SInitial[1].Length);
         S[2] = ArrayPool<uint>.Shared.Rent(SInitial[2].Length);
@@ -395,7 +395,6 @@ public sealed class Blowfish : IDisposable
             ArrayPool<uint>.Shared.Return(S[2]);
             ArrayPool<uint>.Shared.Return(S[1]);
             ArrayPool<uint>.Shared.Return(S[0]);
-            ArrayPool<uint[]>.Shared.Return(S);
             ArrayPool<uint>.Shared.Return(P);
         }
     }
