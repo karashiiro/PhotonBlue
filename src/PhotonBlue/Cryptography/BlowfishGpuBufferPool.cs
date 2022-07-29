@@ -27,21 +27,24 @@ public sealed class BlowfishGpuBufferPool : IDisposable
 
         if (_items.TryDequeue(out var handle))
         {
-            handle.S0.CopyFrom(state.S[0]);
-            handle.S1.CopyFrom(state.S[1]);
-            handle.S2.CopyFrom(state.S[2]);
-            handle.S3.CopyFrom(state.S[3]);
-            handle.P.CopyFrom(state.P);
+            // This is a lifetime escape, but we're just going to tolerate it for now.
+            // So long as this function is aware that these arrays came from an ArrayPool,
+            // it's probably fine.
+            handle.S0.CopyFrom(state.S[0].AsSpan(0, 256));
+            handle.S1.CopyFrom(state.S[1].AsSpan(0, 256));
+            handle.S2.CopyFrom(state.S[2].AsSpan(0, 256));
+            handle.S3.CopyFrom(state.S[3].AsSpan(0, 256));
+            handle.P.CopyFrom(state.P.AsSpan(0, 18));
             return handle;
         }
 
         handle = new BlowfishGpuHandle
         {
-            S0 = Gpu.AllocateConstantBuffer(state.S[0]),
-            S1 = Gpu.AllocateConstantBuffer(state.S[1]),
-            S2 = Gpu.AllocateConstantBuffer(state.S[2]),
-            S3 = Gpu.AllocateConstantBuffer(state.S[3]),
-            P = Gpu.AllocateConstantBuffer(state.P),
+            S0 = Gpu.AllocateConstantBuffer<uint>(state.S[0].AsSpan(0, 256)),
+            S1 = Gpu.AllocateConstantBuffer<uint>(state.S[1].AsSpan(0, 256)),
+            S2 = Gpu.AllocateConstantBuffer<uint>(state.S[2].AsSpan(0, 256)),
+            S3 = Gpu.AllocateConstantBuffer<uint>(state.S[3].AsSpan(0, 256)),
+            P = Gpu.AllocateConstantBuffer<uint>(state.P.AsSpan(0, 18)),
             Data = Gpu.AllocateReadWriteBuffer<uint2>(DataBufferSize / sizeof(uint2)),
         };
 

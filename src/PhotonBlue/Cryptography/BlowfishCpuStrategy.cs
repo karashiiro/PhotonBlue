@@ -4,9 +4,9 @@ public class BlowfishCpuStrategy : BlowfishStrategy
 {
     private readonly Blowfish _blowfish;
 
-    public BlowfishCpuStrategy(ReadOnlySpan<byte> key)
+    public BlowfishCpuStrategy(Blowfish blowfish)
     {
-        _blowfish = new Blowfish(key);
+        _blowfish = blowfish;
     }
     
     public override void Decrypt(Span<byte> data)

@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using System.Buffers;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -6,18 +7,18 @@ using System.Runtime.InteropServices;
 
 namespace PhotonBlue.Cryptography;
 
-public sealed class Blowfish
+public sealed class Blowfish : IDisposable
 {
     #region P-Array and S-Boxes
 
-    public readonly uint[] P =
+    private readonly uint[] PInitial =
     {
         0x243f6a88, 0x85a308d3, 0x13198a2e, 0x03707344, 0xa4093822, 0x299f31d0,
         0x082efa98, 0xec4e6c89, 0x452821e6, 0x38d01377, 0xbe5466cf, 0x34e90c6c,
         0xc0ac29b7, 0xc97c50dd, 0x3f84d5b5, 0xb5470917, 0x9216d5d9, 0x8979fb1b,
     };
 
-    public readonly uint[][] S =
+    private readonly uint[][] SInitial =
     {
         new uint[]
         {
@@ -207,6 +208,11 @@ public sealed class Blowfish
 
     #endregion
 
+    public readonly uint[] P;
+    public readonly uint[][] S;
+
+    private bool _disposed;
+
     private const int Rounds = 16;
 
     /// <summary>
@@ -215,29 +221,41 @@ public sealed class Blowfish
     /// <param name="key">The key to use.</param>
     public Blowfish(ReadOnlySpan<byte> key)
     {
-        // Execute key schedule
+        P = ArrayPool<uint>.Shared.Rent(PInitial.Length);
+        S = ArrayPool<uint[]>.Shared.Rent(SInitial.Length);
+        S[0] = ArrayPool<uint>.Shared.Rent(SInitial[0].Length);
+        S[1] = ArrayPool<uint>.Shared.Rent(SInitial[1].Length);
+        S[2] = ArrayPool<uint>.Shared.Rent(SInitial[2].Length);
+        S[3] = ArrayPool<uint>.Shared.Rent(SInitial[3].Length);
+        
+        Buffer.BlockCopy(PInitial, 0, P, 0, PInitial.Length * sizeof(uint));
+        Buffer.BlockCopy(SInitial[0], 0, S[0], 0, SInitial[0].Length * sizeof(uint));
+        Buffer.BlockCopy(SInitial[1], 0, S[1], 0, SInitial[1].Length * sizeof(uint));
+        Buffer.BlockCopy(SInitial[2], 0, S[2], 0, SInitial[2].Length * sizeof(uint));
+        Buffer.BlockCopy(SInitial[3], 0, S[3], 0, SInitial[3].Length * sizeof(uint));
+        
+        // Execute key schedule:
+        // The key bytes need to be reversed when the P-array is initialized.
         Span<byte> keyCopy = stackalloc byte[sizeof(uint)];
         key.CopyTo(keyCopy);
-        
-        // The key bytes need to be reversed when the P-array is initialized.
         keyCopy.Reverse();
         var keyExt = BitConverter.ToUInt32(keyCopy);
-        for (var i = 0; i < P.Length; i++)
+        for (var i = 0; i < PInitial.Length; i++)
         {
             GetPBoxElementRef(i) ^= keyExt;
         }
 
         var x = 0UL;
         ref var p0 = ref Unsafe.As<uint, ulong>(ref GetPBoxElementRef(0));
-        for (var i = 0; i < P.Length / 2; i++)
+        for (var i = 0; i < PInitial.Length / 2; i++)
         {
             x = Unsafe.Add(ref p0, i) = Encrypt(ref p0, x);
         }
 
-        for (var i = 0; i < S.Length; i++)
+        for (var i = 0; i < SInitial.Length; i++)
         {
             ref var si = ref Unsafe.As<uint, ulong>(ref S[i][0]);
-            for (var j = 0; j < S[0].Length / 2; j++)
+            for (var j = 0; j < SInitial[0].Length / 2; j++)
             {
                 x = Unsafe.Add(ref si, j) = Encrypt(ref p0, x);
             }
@@ -302,27 +320,18 @@ public sealed class Blowfish
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private ref uint GetSBoxElementRef(nuint outer, nuint inner)
-    {
-        ref var sp = ref MemoryMarshal.GetArrayDataReference(S);
-        ref var sx = ref Unsafe.Add(ref sp, outer);
-        ref var data = ref MemoryMarshal.GetArrayDataReference(sx);
-        return ref Unsafe.Add(ref data, inner);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private uint F(uint x)
     {
-        return ((GetSBoxElementRef(0, x >> 24) + GetSBoxElementRef(1, (x >> 16) & 0xFF)) ^
-                GetSBoxElementRef(2, (x >> 8) & 0xFF)) + GetSBoxElementRef(3, x & 0xFF);
+        return ((S[0][(int)(x >> 24)] + S[1][(int)((x >> 16) & 0xFF)]) ^
+                S[2][(int)((x >> 8) & 0xFF)]) + S[3][x & 0xFF];
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private ulong Fu64(uint x)
     {
         // This variant returns a ulong to avoid some integer width adjustment ops later
-        return ((GetSBoxElementRef(0, x >> 24) + GetSBoxElementRef(1, (x >> 16) & 0xFF)) ^
-                GetSBoxElementRef(2, (x >> 8) & 0xFF)) + GetSBoxElementRef(3, x & 0xFF);
+        return ((S[0][(int)(x >> 24)] + S[1][(int)((x >> 16) & 0xFF)]) ^
+                S[2][(int)((x >> 8) & 0xFF)]) + S[3][x & 0xFF];
     }
 
     private (uint, uint) Encrypt(uint l, uint r)
@@ -374,5 +383,20 @@ public sealed class Blowfish
 
         // Parallel XOR
         return x ^ p0;
+    }
+
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            _disposed = true;
+            
+            ArrayPool<uint>.Shared.Return(S[3]);
+            ArrayPool<uint>.Shared.Return(S[2]);
+            ArrayPool<uint>.Shared.Return(S[1]);
+            ArrayPool<uint>.Shared.Return(S[0]);
+            ArrayPool<uint[]>.Shared.Return(S);
+            ArrayPool<uint>.Shared.Return(P);
+        }
     }
 }

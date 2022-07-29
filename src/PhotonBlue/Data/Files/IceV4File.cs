@@ -112,7 +112,7 @@ public class IceV4File : IceFile
         {
             GetBlowfishKeys(_keys, Header.BlowfishMagic, Convert.ToInt32(Header.FileSize));
             var headersRaw = Reader.ReadBytes(0x30);
-            var blowfish = new Blowfish(BitConverter.GetBytes(_keys.GroupHeadersKey));
+            using var blowfish = new Blowfish(BitConverter.GetBytes(_keys.GroupHeadersKey));
             blowfish.Decrypt(headersRaw);
 
             using var headersMem = new MemoryStream(headersRaw);

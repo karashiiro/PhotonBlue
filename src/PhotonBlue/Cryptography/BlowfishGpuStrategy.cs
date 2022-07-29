@@ -16,9 +16,9 @@ public class BlowfishGpuStrategy : BlowfishStrategy
     // TODO: Set up dependency injection or something
     private static readonly BlowfishGpuBufferPool GpuPool = new();
 
-    public BlowfishGpuStrategy(ReadOnlySpan<byte> key)
+    public BlowfishGpuStrategy(Blowfish blowfish)
     {
-        _blowfish = new Blowfish(key);
+        _blowfish = blowfish;
         _buffers = GpuPool.Acquire(_blowfish);
     }
 

@@ -31,6 +31,7 @@ internal sealed class BlowfishDecryptionStream : Stream
     
     private bool _disposed;
 
+    private readonly Blowfish _blowfish;
     private readonly BlowfishStrategy _strategy;
     private readonly Stream _stream;
 
@@ -49,9 +50,10 @@ internal sealed class BlowfishDecryptionStream : Stream
         var baseBufferSize = data.Length > BlowfishGpuStrategy.RecommendedThreshold ? GpuMaxBufferSize : CpuMaxBufferSize;
         var bufferSize = Convert.ToInt32(Math.Min(BitOperations.RoundUpToPowerOf2(Convert.ToUInt64(data.Length)),
             Convert.ToUInt64(baseBufferSize)));
+        _blowfish = new Blowfish(key);
         _strategy = data.Length > BlowfishGpuStrategy.RecommendedThreshold
-            ? new BlowfishGpuStrategy(key)
-            : new BlowfishCpuStrategy(key);
+            ? new BlowfishGpuStrategy(_blowfish)
+            : new BlowfishCpuStrategy(_blowfish);
 
         _holdRaw = ArrayPool<byte>.Shared.Rent(bufferSize);
         _hold = new ArraySegment<byte>(_holdRaw, 0, bufferSize);
@@ -251,6 +253,7 @@ internal sealed class BlowfishDecryptionStream : Stream
             _disposed = true;
             _strategy.Dispose();
             ArrayPool<byte>.Shared.Return(_holdRaw);
+            _blowfish.Dispose();
         }
 
         base.Dispose(disposing);
