@@ -2,7 +2,7 @@
 
 namespace PhotonBlue;
 
-public class GameData
+public sealed class GameData : IDisposable
 {
     /// <summary>
     /// The current data path that Photon Blue is using to load files.
@@ -32,7 +32,7 @@ public class GameData
         }
 
         FileHandleManager = new FileHandleManager();
-        Index = new GameFileIndexer();
+        Index = new GameFileIndexer(FileHandleManager);
     }
 
     /// <summary>
@@ -98,5 +98,10 @@ public class GameData
     public FileHandle<T> GetFileHandle<T>(string path, bool loadComplete = true) where T : FileResource, new()
     {
         return FileHandleManager.CreateHandle<T>(path, loadComplete);
+    }
+
+    public void Dispose()
+    {
+        FileHandleManager.Dispose();
     }
 }

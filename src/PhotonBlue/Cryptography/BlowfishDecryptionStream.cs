@@ -93,7 +93,7 @@ internal sealed class BlowfishDecryptionStream : Stream
         // then just read all of the remaining data.
         var nToRead = Convert.ToInt32(RoundBufferSize(Math.Min(nLeft, _length - _position)));
         var readBuf = ArrayPool<byte>.Shared.Rent(nToRead);
-        MicroDisposable<byte[]>.Create(readBuf, o => ArrayPool<byte>.Shared.Return(o));
+        using var readBufDeferred = MicroDisposable<byte[]>.Create(readBuf, o => ArrayPool<byte>.Shared.Return(o));
         var nRead = _stream.Read(readBuf, 0, readBuf.Length);
         _position += nRead;
 

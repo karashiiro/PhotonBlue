@@ -6,14 +6,16 @@ namespace PhotonBlue;
 public class GameFileIndexer : IGameFileIndexer
 {
     private readonly List<(BaseFileHandle, string, string?, string)> _files;
+    private readonly FileHandleManager _fileHandleManager;
 
     public int DiskFilesRead { get; private set; }
     
     public int DiskFileCount => _files.Count;
 
-    public GameFileIndexer()
+    public GameFileIndexer(FileHandleManager fileHandleManager)
     {
         _files = new List<(BaseFileHandle, string, string?, string)>();
+        _fileHandleManager = fileHandleManager;
     }
 
     public void LoadFromDataPath(string dataPath)
@@ -41,7 +43,7 @@ public class GameFileIndexer : IGameFileIndexer
 
         if (Directory.Exists(win32Path))
         {
-            allFiles = allFiles.Concat(Directory.EnumerateFiles(win32Path, "", SearchOption.TopDirectoryOnly)
+            allFiles = allFiles.Concat(Directory.EnumerateFiles(win32Path, "", SearchOption.AllDirectories)
                 .Select<string, (string, string, string?, string)>(file =>
                     (file, "win32", null, Path.GetFileName(file))));
         }
@@ -60,7 +62,7 @@ public class GameFileIndexer : IGameFileIndexer
                 var (p, s, r, f) = file;
 
                 // Currently only processing ICE files; will add more once this works
-                var handle = FileHandleManager.CreateHandle<IceV4File>(p, false);
+                var handle = _fileHandleManager.CreateHandle<IceV4File>(p, false);
                 return ((BaseFileHandle)handle, s, r, f);
             }));
     }
