@@ -1,5 +1,5 @@
 # Photon Blue
-A library for fast index and lookup operations on PSO2's game data.
+Hardware-accelerated library for fast index and lookup operations on PSO2's game data.
 
 ## System requirements
 * Windows x64
