@@ -40,6 +40,8 @@ public sealed class BlowfishGpuBufferPool : IDisposable
 
         handle = new BlowfishGpuHandle
         {
+            Upload = Gpu.AllocateUploadBuffer<uint2>(DataBufferSize / sizeof(uint2)),
+            Download = Gpu.AllocateReadBackBuffer<uint2>(DataBufferSize / sizeof(uint2)),
             S0 = Gpu.AllocateConstantBuffer<uint>(state.S[0].AsSpan(0, 256)),
             S1 = Gpu.AllocateConstantBuffer<uint>(state.S[1].AsSpan(0, 256)),
             S2 = Gpu.AllocateConstantBuffer<uint>(state.S[2].AsSpan(0, 256)),

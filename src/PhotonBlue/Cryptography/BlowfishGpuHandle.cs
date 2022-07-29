@@ -4,6 +4,8 @@ namespace PhotonBlue.Cryptography;
 
 public struct BlowfishGpuHandle : IDisposable
 {
+    public UploadBuffer<uint2> Upload;
+    public ReadBackBuffer<uint2> Download;
     public ConstantBuffer<uint> S0;
     public ConstantBuffer<uint> S1;
     public ConstantBuffer<uint> S2;
@@ -14,6 +16,8 @@ public struct BlowfishGpuHandle : IDisposable
 
     public readonly void Dispose()
     {
+        Upload.Dispose();
+        Download.Dispose();
         S0.Dispose();
         S1.Dispose();
         S2.Dispose();

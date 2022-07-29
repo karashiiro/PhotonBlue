@@ -38,17 +38,20 @@ public class BlowfishGpuStrategy : BlowfishStrategy
             }
             else
             {
+                // Select the data we want to operate on
                 var dataSlice = dataEx.Slice(i, len);
 
-                // Copy that data into the work buffer
-                _buffers.Data.CopyFrom(dataSlice);
+                // Copy that data onto the GPU
+                dataSlice.CopyTo(_buffers.Upload.Span);
+                _buffers.Upload.CopyTo(_buffers.Data);
 
                 // Run the compute shader
                 GraphicsDevice.Default.For(len, 1, 1, 8, 8, 1,
                     new BlowfishShader(_buffers.S0, _buffers.S1, _buffers.S2, _buffers.S3, _buffers.P, _buffers.Data));
 
-                // Copy data from the work buffer into main memory
-                _buffers.Data.CopyTo(dataSlice);
+                // Copy data back from the GPU
+                _buffers.Download.CopyFrom(_buffers.Data);
+                _buffers.Download.Span[..len].CopyTo(dataSlice);
             }
         }
     }
