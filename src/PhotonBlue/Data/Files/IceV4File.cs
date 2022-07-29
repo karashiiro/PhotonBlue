@@ -233,20 +233,22 @@ public class IceV4File : IceFile
             case > 0 when Header.Flags.HasFlag(IceFileFlags.Kraken):
             {
                 // Kraken decompression
-                var scratch = ArrayPool<byte>.Shared.Rent(Convert.ToInt32(group.GetStoredSize()));
+                var scratchSize = Convert.ToInt32(group.GetStoredSize());
+                var scratch = ArrayPool<byte>.Shared.Rent(scratchSize);
                 using var scratchDeferred = MicroDisposable<byte[]>.Create(scratch, o => ArrayPool<byte>.Shared.Return(o));
                 
-                var nRead1 = inputStream.Read(scratch, 0, scratch.Length);
-                Debug.Assert(nRead1 == scratch.Length, "Decryption gave unexpected decrypted data size.");
+                var nRead1 = inputStream.Read(scratch, 0, scratchSize);
+                Debug.Assert(nRead1 == scratchSize, "Decryption gave unexpected decrypted data size.");
 
-                var result = ArrayPool<byte>.Shared.Rent(Convert.ToInt32(group.RawSize));
+                var resultSize = Convert.ToInt32(group.RawSize);
+                var result = ArrayPool<byte>.Shared.Rent(resultSize);
                 junk.Objects.Add(MicroDisposable<byte[]>.Create(result, o => ArrayPool<byte>.Shared.Return(o)));
                 
                 var nRead2 = Kraken.Decompress(scratch, group.CompressedSize, result, group.RawSize);
                 Debug.Assert(nRead2 != -1, "Kraken decompression failed due to an error.");
-                Debug.Assert(nRead2 == result.Length, "Kraken decompression gave unexpected uncompressed size.");
+                Debug.Assert(nRead2 == resultSize, "Kraken decompression gave unexpected uncompressed size.");
                 
-                return new MemoryStream(result);
+                return new MemoryStream(result[..resultSize]);
             }
             case > 0:
             {
