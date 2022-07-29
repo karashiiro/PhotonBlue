@@ -267,10 +267,7 @@ public sealed class Blowfish
 
     public void DecryptStandard(Span<byte> data)
     {
-        Span<uint> pCopy = stackalloc uint[18];
-        P.CopyTo(pCopy);
-
-        ref var p0 = ref Unsafe.As<uint, ulong>(ref pCopy[0]);
+        ref var p0 = ref Unsafe.As<uint, ulong>(ref P[0]);
         for (var i = 0; i < data.Length; i += 8)
         {
             var x = Decrypt(ref p0, ToUInt64(data.Slice(i, 8)));
@@ -280,12 +277,9 @@ public sealed class Blowfish
 
     public void Decrypt(Span<byte> data)
     {
-        Span<uint> pCopy = stackalloc uint[18];
-        P.CopyTo(pCopy);
-
         // SEGA seems to have rolled their own Blowfish implementation which ignores
         // the last (8 - data.Length % 8) bytes.
-        ref var p0 = ref Unsafe.As<uint, ulong>(ref pCopy[0]);
+        ref var p0 = ref Unsafe.As<uint, ulong>(ref P[0]);
         for (var i = 0; i + 7 < data.Length; i += 8)
         {
             var x = Decrypt(ref p0, ToUInt64(data.Slice(i, 8)));

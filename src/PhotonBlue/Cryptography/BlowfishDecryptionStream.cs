@@ -24,9 +24,12 @@ internal sealed class BlowfishDecryptionStream : Stream
     // An internal buffer for holding decrypted data that the consumer
     // doesn't want to read, yet. This is also used to maximize data
     // throughput when single bytes are being read at a time.
-    private readonly byte[] _hold;
+    private readonly ArraySegment<byte> _hold;
+    private readonly byte[] _holdRaw;
     private int _holdStart;
     private int _holdEnd;
+    
+    private bool _disposed;
 
     private readonly BlowfishStrategy _strategy;
     private readonly Stream _stream;
@@ -44,12 +47,14 @@ internal sealed class BlowfishDecryptionStream : Stream
         // only read a small amount of data (think large ICE archives that we only read headers
         // from, with only one file entry).
         var baseBufferSize = data.Length > BlowfishGpuStrategy.RecommendedThreshold ? GpuMaxBufferSize : CpuMaxBufferSize;
-        var bufferSize = Math.Min(BitOperations.RoundUpToPowerOf2(Convert.ToUInt64(data.Length)), Convert.ToUInt64(baseBufferSize));
+        var bufferSize = Convert.ToInt32(Math.Min(BitOperations.RoundUpToPowerOf2(Convert.ToUInt64(data.Length)),
+            Convert.ToUInt64(baseBufferSize)));
         _strategy = data.Length > BlowfishGpuStrategy.RecommendedThreshold
             ? new BlowfishGpuStrategy(key)
             : new BlowfishCpuStrategy(key);
 
-        _hold = new byte[bufferSize];
+        _holdRaw = ArrayPool<byte>.Shared.Rent(bufferSize);
+        _hold = new ArraySegment<byte>(_holdRaw, 0, bufferSize);
         _holdStart = 0;
         _holdEnd = 0;
 
@@ -153,7 +158,7 @@ internal sealed class BlowfishDecryptionStream : Stream
         // Read data from the stream, decrypt it, and hold anything we're not
         // returning. We can read data directly into the hold buffer, since we
         // know that it has been completely consumed.
-        var nRead = _stream.Read(_hold, 0, _hold.Length);
+        var nRead = _stream.Read(_hold);
         _holdStart = 0;
         _holdEnd = nRead;
         _position += nRead;
@@ -229,8 +234,8 @@ internal sealed class BlowfishDecryptionStream : Stream
     private void HoldBytes(Span<byte> buffer)
     {
         Debug.Assert(HoldCount == 0, "Hold buffer still contains unread data.");
-        Debug.Assert(buffer.Length <= _hold.Length,
-            $"Hold buffer would be larger than {_hold.Length} bytes after this operation.");
+        Debug.Assert(buffer.Length <= _hold.Count,
+            $"Hold buffer would be larger than {_hold.Count} bytes after this operation.");
 
         // Clobber any data currently in the hold buffer since this will never be called
         // while the hold buffer still has data.
@@ -241,9 +246,11 @@ internal sealed class BlowfishDecryptionStream : Stream
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing)
+        if (disposing && !_disposed)
         {
+            _disposed = true;
             _strategy.Dispose();
+            ArrayPool<byte>.Shared.Return(_holdRaw);
         }
 
         base.Dispose(disposing);

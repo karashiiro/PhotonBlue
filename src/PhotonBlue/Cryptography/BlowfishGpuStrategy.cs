@@ -6,7 +6,7 @@ namespace PhotonBlue.Cryptography;
 
 public class BlowfishGpuStrategy : BlowfishStrategy
 {
-    public const int RecommendedThreshold = 16384;
+    public const int RecommendedThreshold = 8192;
 
     private readonly Blowfish _blowfish;
     private readonly BlowfishGpuHandle _buffers;

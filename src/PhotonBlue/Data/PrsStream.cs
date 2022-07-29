@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Buffers;
+using System.Diagnostics;
 
 namespace PhotonBlue.Data;
 
@@ -108,7 +109,8 @@ public class PrsStream : Stream
 
     // An internal buffer for maintaining some of the decompressed data
     // between reads. This is used as a ring queue.
-    private readonly byte[] _lookaround;
+    private readonly ArraySegment<byte> _lookaround;
+    private readonly byte[] _lookaroundRaw;
     private int _lookaroundIndex;
 
     // A reference value for ensuring that our lookaround index is synchronized
@@ -125,7 +127,8 @@ public class PrsStream : Stream
         _ctrlByteCounter = 8;
         _ctrlByte = new ControlByte(0);
 
-        _lookaround = new byte[0x1FFF];
+        _lookaroundRaw = ArrayPool<byte>.Shared.Rent(0x1FFF);
+        _lookaround = new ArraySegment<byte>(_lookaroundRaw, 0, 0x1FFF);
         _lookaroundIndex = 0;
         _bytesRead = 0;
 
@@ -154,9 +157,9 @@ public class PrsStream : Stream
             _bytesRead += nRead;
 
             _lookaroundIndex += nRead;
-            if (_lookaroundIndex > _lookaround.Length)
+            if (_lookaroundIndex > _lookaround.Count)
             {
-                _lookaroundIndex %= _lookaround.Length;
+                _lookaroundIndex %= _lookaround.Count;
             }
 
             if (_currentInstruction.BytesRead == _currentInstruction.Size)
@@ -187,9 +190,9 @@ public class PrsStream : Stream
                     _lookaround[_lookaroundIndex++] = buffer[outIndex++];
                     _bytesRead++;
 
-                    if (_lookaroundIndex == _lookaround.Length)
+                    if (_lookaroundIndex == _lookaround.Count)
                     {
-                        _lookaroundIndex %= _lookaround.Length;
+                        _lookaroundIndex %= _lookaround.Count;
                     }
 
                     break;
@@ -231,9 +234,9 @@ public class PrsStream : Stream
             _bytesRead += nRead;
 
             _lookaroundIndex += nRead;
-            if (_lookaroundIndex > _lookaround.Length)
+            if (_lookaroundIndex > _lookaround.Count)
             {
-                _lookaroundIndex %= _lookaround.Length;
+                _lookaroundIndex %= _lookaround.Count;
             }
 
             if (_currentInstruction.BytesRead == _currentInstruction.Size)
@@ -262,9 +265,9 @@ public class PrsStream : Stream
                     _bytesRead++;
                     outIndex++;
 
-                    if (_lookaroundIndex == _lookaround.Length)
+                    if (_lookaroundIndex == _lookaround.Count)
                     {
-                        _lookaroundIndex %= _lookaround.Length;
+                        _lookaroundIndex %= _lookaround.Count;
                     }
 
                     break;
@@ -311,16 +314,16 @@ public class PrsStream : Stream
         var loadIndex = _lookaroundIndex + offset;
         if (loadIndex < 0)
         {
-            loadIndex += _lookaround.Length;
+            loadIndex += _lookaround.Count;
         }
 
-        if (loadIndex > _lookaround.Length)
+        if (loadIndex > _lookaround.Count)
         {
-            loadIndex %= _lookaround.Length;
+            loadIndex %= _lookaround.Count;
         }
 
         // Copy a run from the lookaround buffer into the output buffer.
-        if (CanFastCopy(_lookaroundIndex, _lookaround.Length, loadIndex, toRead))
+        if (CanFastCopy(_lookaroundIndex, _lookaround.Count, loadIndex, toRead))
         {
             // If the source region and the destination region don't overlap, and neither region
             // loops around to the start of the array, we can just do a simple array copy, which
@@ -343,14 +346,14 @@ public class PrsStream : Stream
 
                 // Doing these modulus assignments every loop is much slower
                 // than doing comparisons every loop instead.
-                if (loadIndex == _lookaround.Length)
+                if (loadIndex == _lookaround.Count)
                 {
-                    loadIndex %= _lookaround.Length;
+                    loadIndex %= _lookaround.Count;
                 }
 
-                if (_lookaroundIndex == _lookaround.Length)
+                if (_lookaroundIndex == _lookaround.Count)
                 {
-                    _lookaroundIndex %= _lookaround.Length;
+                    _lookaroundIndex %= _lookaround.Count;
                 }
             }
         }
@@ -361,7 +364,7 @@ public class PrsStream : Stream
             _currentInstruction = new PrsPointerState { LoadIndex = loadIndex, Size = size, BytesRead = toRead };
         }
 
-        Debug.Assert(_bytesRead % _lookaround.Length == _lookaroundIndex,
+        Debug.Assert(_bytesRead % _lookaround.Count == _lookaroundIndex,
             "Bytes read and lookaround index are not synced.");
     }
 
@@ -384,15 +387,15 @@ public class PrsStream : Stream
         var loadIndex = _lookaroundIndex + offset;
         if (loadIndex < 0)
         {
-            loadIndex += _lookaround.Length;
+            loadIndex += _lookaround.Count;
         }
 
-        if (loadIndex > _lookaround.Length)
+        if (loadIndex > _lookaround.Count)
         {
-            loadIndex %= _lookaround.Length;
+            loadIndex %= _lookaround.Count;
         }
 
-        if (CanFastCopy(_lookaroundIndex, _lookaround.Length, loadIndex, toSeek))
+        if (CanFastCopy(_lookaroundIndex, _lookaround.Count, loadIndex, toSeek))
         {
             var copySrc = _lookaround.AsSpan(loadIndex, toSeek);
             copySrc.CopyTo(_lookaround.AsSpan(_lookaroundIndex, toSeek));
@@ -405,14 +408,14 @@ public class PrsStream : Stream
             {
                 _lookaround[_lookaroundIndex++] = _lookaround[loadIndex++];
 
-                if (loadIndex == _lookaround.Length)
+                if (loadIndex == _lookaround.Count)
                 {
-                    loadIndex %= _lookaround.Length;
+                    loadIndex %= _lookaround.Count;
                 }
 
-                if (_lookaroundIndex == _lookaround.Length)
+                if (_lookaroundIndex == _lookaround.Count)
                 {
-                    _lookaroundIndex %= _lookaround.Length;
+                    _lookaroundIndex %= _lookaround.Count;
                 }
             }
         }
@@ -423,7 +426,7 @@ public class PrsStream : Stream
             _currentInstruction = new PrsPointerState { LoadIndex = loadIndex, Size = size, BytesRead = toSeek };
         }
 
-        Debug.Assert(_bytesRead % _lookaround.Length == _lookaroundIndex,
+        Debug.Assert(_bytesRead % _lookaround.Count == _lookaroundIndex,
             "Bytes read and lookaround index are not synced.");
     }
 
@@ -559,5 +562,15 @@ public class PrsStream : Stream
         var next = _stream.ReadByte();
         Debug.Assert(next != -1, "Unexpected end of stream.");
         return next;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            ArrayPool<byte>.Shared.Return(_lookaroundRaw);
+        }
+        
+        base.Dispose(disposing);
     }
 }
