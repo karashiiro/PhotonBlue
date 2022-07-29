@@ -248,7 +248,7 @@ public class IceV4File : IceFile
                 Debug.Assert(nRead2 != -1, "Kraken decompression failed due to an error.");
                 Debug.Assert(nRead2 == resultSize, "Kraken decompression gave unexpected uncompressed size.");
                 
-                return new MemoryStream(result[..resultSize]);
+                return new MemoryStream(result);
             }
             case > 0:
             {
