@@ -138,7 +138,7 @@ public class IceV4File : IceFile
         // Extract the first group
         var (group1Stream, junk1) = HandleGroupExtraction(Group1, _keys.GroupDataKeys[0], partitionedStream);
         using var junk1Deferred = MicroDisposable<DisposableBundle>.Create(junk1, o => o.Dispose());
-        
+
         Group1Entries = UnpackGroupHeadersOnly(0, group1FileCount, totalFiles, group1Stream);
 
         if (Group2.FileCount > 0)
@@ -149,7 +149,7 @@ public class IceV4File : IceFile
             // Extract the next group
             var (group2Stream, junk2) = HandleGroupExtraction(Group2, _keys.GroupDataKeys[1], partitionedStream);
             using var junk2Deferred = MicroDisposable<DisposableBundle>.Create(junk2, o => o.Dispose());
-            
+
             Group2Entries = UnpackGroupHeadersOnly(group1FileCount, group2FileCount, totalFiles, group2Stream);
         }
     }
@@ -159,7 +159,7 @@ public class IceV4File : IceFile
         // Extract the first group
         var (group1Stream, junk1) = HandleGroupExtraction(Group1, _keys.GroupDataKeys[0], partitionedStream);
         using var junk1Deferred = MicroDisposable<DisposableBundle>.Create(junk1, o => o.Dispose());
-        
+
         Group1Entries = UnpackGroup(Group1, group1Stream);
 
         // Move to the group 2 partition
@@ -168,7 +168,7 @@ public class IceV4File : IceFile
         // Extract the next group
         var (group2Stream, junk2) = HandleGroupExtraction(Group2, _keys.GroupDataKeys[1], partitionedStream);
         using var junk2Deferred = MicroDisposable<DisposableBundle>.Create(junk2, o => o.Dispose());
-        
+
         Group2Entries = UnpackGroup(Group2, group2Stream);
     }
 
@@ -200,16 +200,16 @@ public class IceV4File : IceFile
     private (Stream, DisposableBundle) PrepareGroupDecryption(Stream data, IReadOnlyList<uint> keys)
     {
         var junk = new DisposableBundle();
-        
+
         var decryptStream = data;
         if (Header.Flags.HasFlag(IceFileFlags.Encrypted))
         {
             var floatageFish = new FloatageFishDecryptionStream(data, keys[0], 16);
-            
+
             // These need to get disposed, so we add them to the junk pile.
             decryptStream = new BlowfishDecryptionStream(floatageFish, BitConverter.GetBytes(keys[0]));
             junk.Objects.Add(decryptStream);
-            
+
             if (data.Length <= SecondPassThreshold)
             {
                 decryptStream = new BlowfishDecryptionStream(decryptStream, BitConverter.GetBytes(keys[1]));
@@ -232,22 +232,37 @@ public class IceV4File : IceFile
         {
             case > 0 when Header.Flags.HasFlag(IceFileFlags.Kraken):
             {
+                // Ideally, Kraken decompression could be performed in chunks for performance, but that
+                // would take a major refactor of ooz, which I really don't feel like doing. Instead,
+                // we just handle the case where the buffers we need are larger than what the array pool
+                // is optimized for by allocating our own arrays. Renting arrays larger than the max size
+                // incurs a performance hit when returning the array to the pool.
+                const int arrayPoolMax = 1048576;
+
                 // Kraken decompression
                 var scratchSize = Convert.ToInt32(group.GetStoredSize());
-                var scratch = ArrayPool<byte>.Shared.Rent(scratchSize);
-                using var scratchDeferred = MicroDisposable<byte[]>.Create(scratch, o => ArrayPool<byte>.Shared.Return(o));
-                
+                var scratchPooled = scratchSize <= arrayPoolMax;
+                var scratch = scratchPooled ? ArrayPool<byte>.Shared.Rent(scratchSize) : new byte[scratchSize];
+                if (scratchPooled)
+                {
+                    junk.Objects.Add(MicroDisposable<byte[]>.Create(scratch, o => ArrayPool<byte>.Shared.Return(o)));
+                }
+
                 var nRead1 = inputStream.Read(scratch, 0, scratchSize);
                 Debug.Assert(nRead1 == scratchSize, "Decryption gave unexpected decrypted data size.");
 
                 var resultSize = Convert.ToInt32(group.RawSize);
-                var result = ArrayPool<byte>.Shared.Rent(resultSize);
-                junk.Objects.Add(MicroDisposable<byte[]>.Create(result, o => ArrayPool<byte>.Shared.Return(o)));
-                
+                var resultPooled = resultSize <= arrayPoolMax;
+                var result = resultPooled ? ArrayPool<byte>.Shared.Rent(resultSize) : new byte[resultSize];
+                if (resultPooled)
+                {
+                    junk.Objects.Add(MicroDisposable<byte[]>.Create(result, o => ArrayPool<byte>.Shared.Return(o)));
+                }
+
                 var nRead2 = Kraken.Decompress(scratch, group.CompressedSize, result, group.RawSize);
                 Debug.Assert(nRead2 != -1, "Kraken decompression failed due to an error.");
                 Debug.Assert(nRead2 == resultSize, "Kraken decompression gave unexpected uncompressed size.");
-                
+
                 return new MemoryStream(result);
             }
             case > 0:
