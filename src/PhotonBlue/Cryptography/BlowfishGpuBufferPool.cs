@@ -7,8 +7,8 @@ public sealed class BlowfishGpuBufferPool : IDisposable
 {
     public const int DataBufferSize = 524288;
     
-    private const int MaxConcurrency = 40;
-    private const int MinConcurrency = 1;
+    private const int MaxConcurrency = 50;
+    private const int MinConcurrency = 5;
     
     private static readonly GraphicsDevice Gpu = GraphicsDevice.Default;
 

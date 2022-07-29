@@ -10,7 +10,6 @@ public sealed class FileHandleManager : IDisposable
     {
         _threadPool = new SmartThreadPool(new STPStartInfo
         {
-            MaxWorkerThreads = 32,
             ThreadPoolName = "Photon Blue",
         });
     }
