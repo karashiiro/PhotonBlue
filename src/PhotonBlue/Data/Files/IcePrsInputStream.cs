@@ -1,12 +1,14 @@
 ﻿namespace PhotonBlue.Data.Files;
 
-public class IcePrsInputStream : Stream
+internal sealed class IcePrsInputStream : Stream
 {
     public override bool CanRead => _stream.CanRead;
     public override bool CanSeek => _stream.CanSeek;
     public override bool CanWrite => _stream.CanWrite;
-    
+
+    // ReSharper disable once ConvertToAutoPropertyWithPrivateSetter
     public override long Length => _length;
+
     public override long Position
     {
         get => _position;
@@ -21,15 +23,15 @@ public class IcePrsInputStream : Stream
 
     private long _length;
     private long _position;
-    
+
     public IcePrsInputStream(Stream data)
     {
         _stream = data;
-        
+
         _length = data.Length;
         _position = data.Position;
     }
-    
+
     public override void Flush()
     {
         _stream.Flush();
@@ -41,13 +43,13 @@ public class IcePrsInputStream : Stream
         {
             return 0;
         }
-        
+
         var nRead = _stream.Read(buffer, offset, count);
         for (var i = offset; i < offset + count; i++)
         {
             buffer[i] ^= 149;
         }
-        
+
         _position += nRead;
         return nRead;
     }

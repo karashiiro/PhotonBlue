@@ -2,7 +2,7 @@
 
 namespace PhotonBlue;
 
-public class PartitionedStream : Stream
+internal sealed class PartitionedStream : Stream
 {
     public override bool CanRead => _stream.CanRead;
     public override bool CanSeek => false;

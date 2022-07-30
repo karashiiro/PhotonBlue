@@ -1,7 +1,7 @@
 ﻿namespace PhotonBlue.Attributes;
 
 [AttributeUsage(AttributeTargets.Class)]
-public class FileMagicAttribute : Attribute
+internal class FileMagicAttribute : Attribute
 {
     public string Value { get; }
 

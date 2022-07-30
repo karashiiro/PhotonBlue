@@ -4,7 +4,7 @@ namespace PhotonBlue.Cryptography;
 
 [AutoConstructor]
 [EmbeddedBytecode(8, 8, 1)]
-public readonly partial struct BlowfishShader : IComputeShader
+internal readonly partial struct BlowfishShader : IComputeShader
 {
     private const int Rounds = 16;
     

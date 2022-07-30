@@ -7,7 +7,7 @@ namespace PhotonBlue.Data;
 // much more similar to that than to LZ77, but with some small tweaks to how
 // EOF, offset, and size are calculated. LZSS is itself a variant of LZ77, of
 // course, but it's more useful to be specific.
-public class PrsStream : Stream
+internal sealed class PrsStream : Stream
 {
     private class PrsPointerState
     {

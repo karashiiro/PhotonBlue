@@ -5,7 +5,7 @@ namespace PhotonBlue;
 /// This is intended for when creating a specific wrapper type would be overkill.
 /// </summary>
 /// <typeparam name="T">The type of the object to wrap.</typeparam>
-public struct MicroDisposable<T> : IDisposable
+internal struct MicroDisposable<T> : IDisposable
 {
     private readonly T disposeArg;
     private readonly Action<T> disposeAction;

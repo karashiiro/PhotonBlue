@@ -1,6 +1,6 @@
 namespace PhotonBlue.Cryptography;
 
-public abstract class BlowfishStrategy : IDisposable
+internal abstract class BlowfishStrategy : IDisposable
 {
     public abstract void Decrypt(Span<byte> data);
 

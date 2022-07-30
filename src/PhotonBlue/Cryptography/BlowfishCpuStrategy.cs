@@ -1,6 +1,6 @@
 namespace PhotonBlue.Cryptography;
 
-public class BlowfishCpuStrategy : BlowfishStrategy
+internal class BlowfishCpuStrategy : BlowfishStrategy
 {
     private readonly Blowfish _blowfish;
 

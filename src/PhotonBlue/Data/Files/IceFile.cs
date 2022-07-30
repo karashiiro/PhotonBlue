@@ -6,7 +6,7 @@ using PhotonBlue.Extensions;
 
 namespace PhotonBlue.Data.Files;
 
-public class IceFile : FileResource
+public abstract class IceFile : FileResource
 {
     [Flags]
     public enum IceFileFlags : uint

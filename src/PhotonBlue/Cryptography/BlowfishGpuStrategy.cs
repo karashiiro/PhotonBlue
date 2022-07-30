@@ -4,7 +4,7 @@ using ComputeSharp;
 
 namespace PhotonBlue.Cryptography;
 
-public class BlowfishGpuStrategy : BlowfishStrategy
+internal class BlowfishGpuStrategy : BlowfishStrategy
 {
     public const int RecommendedThreshold = 8192;
 
