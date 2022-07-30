@@ -1,6 +1,11 @@
 # Photon Blue
 Hardware-accelerated library for fast index and lookup operations on PSO2's game data.
 
+## System requirements
+* Windows x64
+* .NET 6 Runtime
+* DirectX 12
+
 ## Performance
 (TODO: Benchmarks)
 
@@ -16,11 +21,6 @@ To accelerate read performance, use an SSD or some faster storage medium. If you
 (not taking into account caching, as noted above). Game data may also be spread across multiple drives using symlinks, allowing
 load to be distributed across them. Given that NGS is significantly smaller than the old PSO2, it may be a good idea to store that on an SSD, symlinking
 the `win32reboot` folder back into `pso2_bin/data`.
-
-## System requirements
-* Windows x64
-* .NET 6 Runtime
-* DirectX 12
 
 ## Acknowledgements
 Photon Blue copies/builds on prior work in both the PSO2 and FFXIV development communities,
