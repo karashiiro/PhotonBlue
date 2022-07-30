@@ -22,6 +22,14 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PhotonBlue.Cmd", "PhotonBlu
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PhotonBlue.IceV4Benchmark", "PhotonBlue.IceV4Benchmark\PhotonBlue.IceV4Benchmark.csproj", "{7C8C80CE-CD8D-4A36-91FC-45BEE207DFF4}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Documentation", "Documentation", "{54BF9BEA-2CDA-4501-9286-CAD01ACBB22E}"
+	ProjectSection(SolutionItems) = preProject
+		..\docfx\articles\intro.md = ..\docfx\articles\intro.md
+		..\docfx\articles\toc.yml = ..\docfx\articles\toc.yml
+		..\docfx\articles\getting-started.md = ..\docfx\articles\getting-started.md
+		..\docfx\articles\performance-considerations.md = ..\docfx\articles\performance-considerations.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
