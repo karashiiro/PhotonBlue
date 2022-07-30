@@ -39,13 +39,13 @@ public sealed class GameData : IDisposable
         }
 
         _kernel = new StandardKernel();
-        _kernel.Bind<IObjectPool<BlowfishGpuHandle, Blowfish>>().To<BlowfishGpuBufferPool>();
-        _kernel.Bind<IFileHandleProvider>().To<FileHandleManager>();
-        _kernel.Bind<IGameFileIndexer>().To<GameFileIndexer>();
+        _kernel.Bind<IObjectPool<BlowfishGpuHandle, Blowfish>>().To<BlowfishGpuBufferPool>().InSingletonScope();
+        _kernel.Bind<IFileHandleProvider>().To<FileHandleManager>().InSingletonScope();
+        _kernel.Bind<IGameFileIndexer>().To<GameFileIndexer>().InSingletonScope();
 
         if (indexProvider == null)
         {
-            _kernel.Bind<IGameFileIndex>().To<MemoryIndex>();
+            _kernel.Bind<IGameFileIndex>().To<MemoryIndex>().InSingletonScope();
         }
         else
         {
