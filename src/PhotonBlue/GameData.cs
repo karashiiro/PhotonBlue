@@ -38,19 +38,7 @@ public sealed class GameData : IDisposable
             throw new ArgumentException("DataPath must point to the pso2_bin directory.", nameof(pso2BinPath));
         }
 
-        _kernel = new StandardKernel();
-        _kernel.Bind<IObjectPool<BlowfishGpuHandle, Blowfish>>().To<BlowfishGpuBufferPool>().InSingletonScope();
-        _kernel.Bind<IFileHandleProvider>().To<FileHandleManager>().InSingletonScope();
-        _kernel.Bind<IGameFileIndexer>().To<GameFileIndexer>().InSingletonScope();
-
-        if (indexProvider == null)
-        {
-            _kernel.Bind<IGameFileIndex>().To<MemoryIndex>().InSingletonScope();
-        }
-        else
-        {
-            _kernel.Bind<IGameFileIndex>().ToMethod(_ => indexProvider());
-        }
+        _kernel = new StandardKernel(new ServiceModule(indexProvider));
     }
 
     /// <summary>
