@@ -1,4 +1,5 @@
-﻿using PhotonBlue.Cryptography;
+﻿using Ninject;
+using PhotonBlue.Cryptography;
 using PhotonBlue.Data;
 using PhotonBlue.Persistence;
 
@@ -10,23 +11,20 @@ public sealed class GameData : IDisposable
     /// The current data path that Photon Blue is using to load files.
     /// </summary>
     public DirectoryInfo DataPath { get; }
-    
-    public IGameFileIndexer Indexer { get; }
-    
-    public IGameFileIndex Index { get; }
+
+    public IGameFileIndexer Indexer => _kernel.Get<IGameFileIndexer>();
+
+    public IGameFileIndex Index => _kernel.Get<IGameFileIndex>();
 
     /// <summary>
     /// Provides access to the <see cref="IFileHandleProvider"/> which allows you to create new
     /// <see cref="FileHandle{T}"/>s which then allows you to easily defer file loading onto another thread.
     /// </summary>
-    public IFileHandleProvider FileHandleProvider => _fileHandleManager;
+    public IFileHandleProvider FileHandleProvider => _kernel.Get<IFileHandleProvider>();
 
-    private readonly FileHandleManager _fileHandleManager;
-    
-    // TODO: Set up dependency injection or something
-    private readonly IObjectPool<BlowfishGpuHandle, Blowfish> _blowfishGpuPool;
+    private readonly IKernel _kernel;
 
-    public GameData(string pso2BinPath, IGameFileIndex? index = null)
+    public GameData(string pso2BinPath, Func<IGameFileIndex>? indexProvider = null)
     {
         DataPath = new DirectoryInfo(pso2BinPath);
 
@@ -40,10 +38,19 @@ public sealed class GameData : IDisposable
             throw new ArgumentException("DataPath must point to the pso2_bin directory.", nameof(pso2BinPath));
         }
 
-        _blowfishGpuPool = new BlowfishGpuBufferPool();
-        _fileHandleManager = new FileHandleManager(_blowfishGpuPool);
-        Index = index ?? new MemoryIndex();
-        Indexer = new GameFileIndexer(_fileHandleManager, Index);
+        _kernel = new StandardKernel();
+        _kernel.Bind<IObjectPool<BlowfishGpuHandle, Blowfish>>().To<BlowfishGpuBufferPool>();
+        _kernel.Bind<IFileHandleProvider>().To<FileHandleManager>();
+        _kernel.Bind<IGameFileIndexer>().To<GameFileIndexer>();
+
+        if (indexProvider == null)
+        {
+            _kernel.Bind<IGameFileIndex>().To<MemoryIndex>();
+        }
+        else
+        {
+            _kernel.Bind<IGameFileIndex>().ToMethod(_ => indexProvider());
+        }
     }
 
     /// <summary>
@@ -54,7 +61,8 @@ public sealed class GameData : IDisposable
     /// <returns></returns>
     public T? GetFile<T>(string path) where T : FileResource, new()
     {
-        var file = new FileHandle<T>(Path.Combine(DataPath.FullName, path), _blowfishGpuPool);
+        var blowfishGpuPool = _kernel.Get<IObjectPool<BlowfishGpuHandle, Blowfish>>();
+        var file = new FileHandle<T>(Path.Combine(DataPath.FullName, path), blowfishGpuPool);
         file.Load();
         return file.State != BaseFileHandle.FileState.Loaded ? null : file.Value;
     }
@@ -67,7 +75,8 @@ public sealed class GameData : IDisposable
     /// <returns></returns>
     public T? GetFileHeadersOnly<T>(string path) where T : FileResource, new()
     {
-        var file = new FileHandle<T>(Path.Combine(DataPath.FullName, path), _blowfishGpuPool);
+        var blowfishGpuPool = _kernel.Get<IObjectPool<BlowfishGpuHandle, Blowfish>>();
+        var file = new FileHandle<T>(Path.Combine(DataPath.FullName, path), blowfishGpuPool);
         file.LoadHeadersOnly();
         return file.State != BaseFileHandle.FileState.Loaded ? null : file.Value;
     }
@@ -80,7 +89,8 @@ public sealed class GameData : IDisposable
     /// <returns></returns>
     public T? GetFileFromDisk<T>(string path) where T : FileResource, new()
     {
-        var file = new FileHandle<T>(path, _blowfishGpuPool);
+        var blowfishGpuPool = _kernel.Get<IObjectPool<BlowfishGpuHandle, Blowfish>>();
+        var file = new FileHandle<T>(path, blowfishGpuPool);
         file.Load();
         return file.State != BaseFileHandle.FileState.Loaded ? null : file.Value;
     }
@@ -93,7 +103,8 @@ public sealed class GameData : IDisposable
     /// <returns></returns>
     public T? GetFileFromDiskHeadersOnly<T>(string path) where T : FileResource, new()
     {
-        var file = new FileHandle<T>(path, _blowfishGpuPool);
+        var blowfishGpuPool = _kernel.Get<IObjectPool<BlowfishGpuHandle, Blowfish>>();
+        var file = new FileHandle<T>(path, blowfishGpuPool);
         file.LoadHeadersOnly();
         return file.State != BaseFileHandle.FileState.Loaded ? null : file.Value;
     }
@@ -108,11 +119,11 @@ public sealed class GameData : IDisposable
     /// <returns></returns>
     public FileHandle<T> GetFileHandle<T>(string path, bool loadComplete = true) where T : FileResource, new()
     {
-        return _fileHandleManager.CreateHandle<T>(path, loadComplete);
+        return FileHandleProvider.CreateHandle<T>(path, loadComplete);
     }
 
     public void Dispose()
     {
-        _fileHandleManager.Dispose();
+        _kernel.Dispose();
     }
 }
