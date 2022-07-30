@@ -15,13 +15,12 @@ public class PrsStream : Stream
         public int BytesRead { get; set; }
         public int Size { get; init; }
 
-        public int Read(IList<byte> lookaround, int lookaroundOffset, byte[] buffer, int bufferIndex,
-            int bufferCount)
+        public int Read(Span<byte> lookaround, int lookaroundOffset, Span<byte> buffer)
         {
-            var toRead = Math.Min(bufferCount, Size - BytesRead);
+            var toRead = Math.Min(buffer.Length, Size - BytesRead);
             BytesRead += toRead;
             
-            var copyTarget = buffer.AsSpan(bufferIndex, toRead);
+            var copyTarget = buffer[..toRead];
             for (var i = 0; i < copyTarget.Length; i++)
             {
                 // Read data from the lookaround buffer.
@@ -32,21 +31,21 @@ public class PrsStream : Stream
 
                 // Doing these modulus assignments every loop is much slower
                 // than doing comparisons every loop instead.
-                if (LoadIndex == lookaround.Count)
+                if (LoadIndex == lookaround.Length)
                 {
-                    LoadIndex %= lookaround.Count;
+                    LoadIndex %= lookaround.Length;
                 }
 
-                if (lookaroundOffset == lookaround.Count)
+                if (lookaroundOffset == lookaround.Length)
                 {
-                    lookaroundOffset %= lookaround.Count;
+                    lookaroundOffset %= lookaround.Length;
                 }
             }
             
             return toRead;
         }
 
-        public int Skip(IList<byte> lookaround, int lookaroundOffset, int count)
+        public int Skip(Span<byte> lookaround, int lookaroundOffset, int count)
         {
             var toRead = Math.Min(count, Size - BytesRead);
             BytesRead += toRead;
@@ -54,14 +53,14 @@ public class PrsStream : Stream
             {
                 lookaround[lookaroundOffset++] = lookaround[LoadIndex++];
 
-                if (LoadIndex == lookaround.Count)
+                if (LoadIndex == lookaround.Length)
                 {
-                    LoadIndex %= lookaround.Count;
+                    LoadIndex %= lookaround.Length;
                 }
 
-                if (lookaroundOffset == lookaround.Count)
+                if (lookaroundOffset == lookaround.Length)
                 {
-                    lookaroundOffset %= lookaround.Count;
+                    lookaroundOffset %= lookaround.Length;
                 }
             }
 
@@ -152,7 +151,7 @@ public class PrsStream : Stream
         if (_currentInstruction != null)
         {
             // Resume pending instruction
-            var nRead = _currentInstruction.Read(_lookaround, _lookaroundIndex, buffer, outIndex, count);
+            var nRead = _currentInstruction.Read(_lookaround, _lookaroundIndex, buffer.AsSpan(outIndex, count));
             outIndex += nRead;
             _bytesRead += nRead;
 
@@ -200,8 +199,7 @@ public class PrsStream : Stream
                 {
                     var (_, prsOffset, prsSize) = ptr;
                     var toRead = Math.Min(prsSize, endIndex - outIndex);
-                    var copyTarget = buffer.AsSpan(outIndex, toRead);
-                    ReadPointer(prsOffset, prsSize, copyTarget, toRead);
+                    ReadPointer(prsOffset, prsSize, buffer.AsSpan(outIndex, toRead), toRead);
                     outIndex += toRead;
                     break;
                 }
