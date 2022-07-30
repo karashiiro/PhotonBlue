@@ -1,0 +1,33 @@
+name: Build Documentation
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
+
+    - name: Setup docfx
+      run: choco install docfx
+
+    - name: Build and push
+      run: |
+        git checkout -b gh-pages
+        git config --global user.email "photonblue@karashiiro.moe"
+        git config --global user.name "Photon Blue"
+        cd docfx
+        docfx
+        cd ..
+        rm -r src
+        Copy-Item -Path docfx/_site/* -Destination . -Recurse -Force
+        rm -r docfx
+        git add -A
+        git commit -m "Automated update"
+        git push -uf origin gh-pages
