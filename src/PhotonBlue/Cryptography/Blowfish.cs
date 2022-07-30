@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 
 namespace PhotonBlue.Cryptography;
 
-internal sealed class Blowfish : IDisposable
+public sealed class Blowfish : IDisposable
 {
     #region P-Array and S-Boxes
 

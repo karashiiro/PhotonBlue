@@ -1,4 +1,5 @@
-﻿using PhotonBlue.Data;
+﻿using PhotonBlue.Cryptography;
+using PhotonBlue.Data;
 using PhotonBlue.Persistence;
 
 namespace PhotonBlue;
@@ -21,6 +22,9 @@ public sealed class GameData : IDisposable
     public IFileHandleProvider FileHandleProvider => _fileHandleManager;
 
     private readonly FileHandleManager _fileHandleManager;
+    
+    // TODO: Set up dependency injection or something
+    private readonly IObjectPool<BlowfishGpuHandle, Blowfish> _blowfishGpuPool;
 
     public GameData(string pso2BinPath, IGameFileIndex? index = null)
     {
@@ -36,7 +40,8 @@ public sealed class GameData : IDisposable
             throw new ArgumentException("DataPath must point to the pso2_bin directory.", nameof(pso2BinPath));
         }
 
-        _fileHandleManager = new FileHandleManager();
+        _blowfishGpuPool = new BlowfishGpuBufferPool();
+        _fileHandleManager = new FileHandleManager(_blowfishGpuPool);
         Index = index ?? new MemoryIndex();
         Indexer = new GameFileIndexer(_fileHandleManager, Index);
     }
@@ -49,7 +54,7 @@ public sealed class GameData : IDisposable
     /// <returns></returns>
     public T? GetFile<T>(string path) where T : FileResource, new()
     {
-        var file = new FileHandle<T>(Path.Combine(DataPath.FullName, path));
+        var file = new FileHandle<T>(Path.Combine(DataPath.FullName, path), _blowfishGpuPool);
         file.Load();
         return file.State != BaseFileHandle.FileState.Loaded ? null : file.Value;
     }
@@ -62,7 +67,7 @@ public sealed class GameData : IDisposable
     /// <returns></returns>
     public T? GetFileHeadersOnly<T>(string path) where T : FileResource, new()
     {
-        var file = new FileHandle<T>(Path.Combine(DataPath.FullName, path));
+        var file = new FileHandle<T>(Path.Combine(DataPath.FullName, path), _blowfishGpuPool);
         file.LoadHeadersOnly();
         return file.State != BaseFileHandle.FileState.Loaded ? null : file.Value;
     }
@@ -73,9 +78,9 @@ public sealed class GameData : IDisposable
     /// <param name="path"></param>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    public static T? GetFileFromDisk<T>(string path) where T : FileResource, new()
+    public T? GetFileFromDisk<T>(string path) where T : FileResource, new()
     {
-        var file = new FileHandle<T>(path);
+        var file = new FileHandle<T>(path, _blowfishGpuPool);
         file.Load();
         return file.State != BaseFileHandle.FileState.Loaded ? null : file.Value;
     }
@@ -86,9 +91,9 @@ public sealed class GameData : IDisposable
     /// <param name="path"></param>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    public static T? GetFileFromDiskHeadersOnly<T>(string path) where T : FileResource, new()
+    public T? GetFileFromDiskHeadersOnly<T>(string path) where T : FileResource, new()
     {
-        var file = new FileHandle<T>(path);
+        var file = new FileHandle<T>(path, _blowfishGpuPool);
         file.LoadHeadersOnly();
         return file.State != BaseFileHandle.FileState.Loaded ? null : file.Value;
     }

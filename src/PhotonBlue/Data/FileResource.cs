@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 using System.Text;
 using PhotonBlue.Attributes;
+using PhotonBlue.Cryptography;
 
 namespace PhotonBlue.Data;
 
@@ -8,15 +9,17 @@ public abstract class FileResource
 {
     internal Stream? BaseStream { get; set; }
     internal BinaryReader? Reader { get; set; }
+    internal IObjectPool<BlowfishGpuHandle, Blowfish>? BlowfishGpuPool { get; set; }
 
     protected FileResource()
     {
     }
 
-    protected FileResource(Stream data)
+    protected FileResource(Stream data, IObjectPool<BlowfishGpuHandle, Blowfish> blowfishGpuPool)
     {
         BaseStream = data;
         Reader = new BinaryReader(data);
+        BlowfishGpuPool = blowfishGpuPool;
     }
 
     public abstract void LoadFile();
@@ -31,12 +34,13 @@ public abstract class FileResource
         throw new NotSupportedException();
     }
 
-    public static T FromStream<T>(Stream data) where T : FileResource, new()
+    public static T FromStream<T>(Stream data, IObjectPool<BlowfishGpuHandle, Blowfish> blowfishGpuPool) where T : FileResource, new()
     {
         var file = new T
         {
             BaseStream = data,
             Reader = new BinaryReader(data),
+            BlowfishGpuPool = blowfishGpuPool,
         };
 
         var magicAttr = typeof(T).GetCustomAttribute<FileMagicAttribute>();

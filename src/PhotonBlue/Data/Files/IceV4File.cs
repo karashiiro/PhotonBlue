@@ -50,7 +50,7 @@ public class IceV4File : IceFile
         Group2Entries = Array.Empty<FileEntry>();
     }
 
-    public IceV4File(Stream data) : base(data)
+    public IceV4File(Stream data, IObjectPool<BlowfishGpuHandle, Blowfish> blowfishGpuPool) : base(data, blowfishGpuPool)
     {
         _keys = new BlowfishKeys();
 
@@ -66,7 +66,7 @@ public class IceV4File : IceFile
         {
             throw new InvalidOperationException($"Incorrect ICE version detected; expected 4, got {Header.Version}.");
         }
-        
+
         LoadGroupHeaders();
 
         Debug.Assert(Reader != null);
@@ -92,7 +92,7 @@ public class IceV4File : IceFile
         {
             throw new InvalidOperationException($"Incorrect ICE version detected; expected 4, got {Header.Version}.");
         }
-        
+
         LoadGroupHeaders();
 
         Debug.Assert(Reader != null);
@@ -215,12 +215,13 @@ public class IceV4File : IceFile
             var floatageFish = new FloatageFishDecryptionStream(data, keys[0], 16);
 
             // These need to get disposed, so we add them to the junk pile.
-            decryptStream = new BlowfishDecryptionStream(floatageFish, BitConverter.GetBytes(keys[0]));
+            Debug.Assert(BlowfishGpuPool != null, nameof(BlowfishGpuPool) + " != null");
+            decryptStream = new BlowfishDecryptionStream(BlowfishGpuPool, floatageFish, BitConverter.GetBytes(keys[0]));
             junk.Objects.Add(decryptStream);
 
             if (data.Length <= SecondPassThreshold)
             {
-                decryptStream = new BlowfishDecryptionStream(decryptStream, BitConverter.GetBytes(keys[1]));
+                decryptStream = new BlowfishDecryptionStream(BlowfishGpuPool, decryptStream, BitConverter.GetBytes(keys[1]));
                 junk.Objects.Add(decryptStream);
             }
         }

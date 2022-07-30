@@ -28,7 +28,7 @@ internal sealed class BlowfishDecryptionStream : Stream
     private readonly byte[] _holdRaw;
     private int _holdStart;
     private int _holdEnd;
-    
+
     private bool _disposed;
 
     private readonly Blowfish _blowfish;
@@ -41,18 +41,20 @@ internal sealed class BlowfishDecryptionStream : Stream
     private const int GpuMaxBufferSize = BlowfishGpuBufferPool.DataBufferSize;
     private const int CpuMaxBufferSize = 8;
 
-    public BlowfishDecryptionStream(Stream data, ReadOnlySpan<byte> key)
+    public BlowfishDecryptionStream(IObjectPool<BlowfishGpuHandle, Blowfish> gpuPool, Stream data, ReadOnlySpan<byte> key)
     {
         // This does well on small files and on large files that we read the entirety of.
         // In the worst case, we select the GPU decryption strategy for a large file and then
         // only read a small amount of data (think large ICE archives that we only read headers
         // from, with only one file entry).
-        var baseBufferSize = data.Length > BlowfishGpuStrategy.RecommendedThreshold ? GpuMaxBufferSize : CpuMaxBufferSize;
+        var baseBufferSize = data.Length > BlowfishGpuStrategy.RecommendedThreshold
+            ? GpuMaxBufferSize
+            : CpuMaxBufferSize;
         var bufferSize = Convert.ToInt32(Math.Min(BitOperations.RoundUpToPowerOf2(Convert.ToUInt64(data.Length)),
             Convert.ToUInt64(baseBufferSize)));
         _blowfish = new Blowfish(key);
         _strategy = data.Length > BlowfishGpuStrategy.RecommendedThreshold
-            ? new BlowfishGpuStrategy(_blowfish)
+            ? new BlowfishGpuStrategy(gpuPool, _blowfish)
             : new BlowfishCpuStrategy(_blowfish);
 
         _holdRaw = ArrayPool<byte>.Shared.Rent(bufferSize);

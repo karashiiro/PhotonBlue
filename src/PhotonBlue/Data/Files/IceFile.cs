@@ -2,6 +2,7 @@
 
 using System.Diagnostics;
 using System.Text;
+using PhotonBlue.Cryptography;
 using PhotonBlue.Extensions;
 
 namespace PhotonBlue.Data.Files;
@@ -121,7 +122,7 @@ public abstract class IceFile : FileResource
     {
     }
 
-    protected IceFile(Stream data) : base(data)
+    protected IceFile(Stream data, IObjectPool<BlowfishGpuHandle, Blowfish> blowfishGpuPool) : base(data, blowfishGpuPool)
     {
     }
 

@@ -1,13 +1,18 @@
 ﻿using Amib.Threading;
+using PhotonBlue.Cryptography;
 
 namespace PhotonBlue.Data;
 
 public sealed class FileHandleManager : IFileHandleProvider, IDisposable
 {
     private readonly SmartThreadPool _threadPool;
+    
+    // TODO: Set up dependency injection or something
+    private readonly IObjectPool<BlowfishGpuHandle, Blowfish> _blowfishGpuPool;
 
-    public FileHandleManager()
+    public FileHandleManager(IObjectPool<BlowfishGpuHandle, Blowfish> blowfishGpuPool)
     {
+        _blowfishGpuPool = blowfishGpuPool;
         _threadPool = new SmartThreadPool(new STPStartInfo
         {
             ThreadPoolName = "Photon Blue",
@@ -17,7 +22,7 @@ public sealed class FileHandleManager : IFileHandleProvider, IDisposable
     /// <inheritdoc />
     public FileHandle<T> CreateHandle<T>(string path, bool loadComplete = true) where T : FileResource, new()
     {
-        var handle = new FileHandle<T>(path);
+        var handle = new FileHandle<T>(path, _blowfishGpuPool);
         var weakRef = new WeakReference<BaseFileHandle>(handle);
         _threadPool.QueueWorkItem(loadComplete ? LoadFileHandleAction : LoadFileHandleHeadersOnlyAction, weakRef);
         return handle;

@@ -10,16 +10,15 @@ internal class BlowfishGpuStrategy : BlowfishStrategy
 
     private readonly Blowfish _blowfish;
     private readonly BlowfishGpuHandle _buffers;
+    private readonly IObjectPool<BlowfishGpuHandle, Blowfish> _gpuPool;
 
     private bool _disposed;
 
-    // TODO: Set up dependency injection or something
-    private static readonly IObjectPool<BlowfishGpuHandle, Blowfish> GpuPool = new BlowfishGpuBufferPool();
-
-    public BlowfishGpuStrategy(Blowfish blowfish)
+    public BlowfishGpuStrategy(IObjectPool<BlowfishGpuHandle, Blowfish> gpuPool, Blowfish blowfish)
     {
         _blowfish = blowfish;
-        _buffers = GpuPool.Acquire(_blowfish);
+        _gpuPool = gpuPool;
+        _buffers = _gpuPool.Acquire(_blowfish);
     }
 
     public override unsafe void Decrypt(Span<byte> data)
@@ -60,7 +59,7 @@ internal class BlowfishGpuStrategy : BlowfishStrategy
     {
         if (disposing && !_disposed)
         {
-            GpuPool.Release(_buffers);
+            _gpuPool.Release(_buffers);
             _disposed = true;
         }
 

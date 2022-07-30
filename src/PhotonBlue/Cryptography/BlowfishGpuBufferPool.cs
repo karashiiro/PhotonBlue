@@ -3,7 +3,7 @@ using ComputeSharp;
 
 namespace PhotonBlue.Cryptography;
 
-internal sealed class BlowfishGpuBufferPool : IObjectPool<BlowfishGpuHandle, Blowfish>, IDisposable
+public sealed class BlowfishGpuBufferPool : IObjectPool<BlowfishGpuHandle, Blowfish>, IDisposable
 {
     public const int DataBufferSize = 524288;
     

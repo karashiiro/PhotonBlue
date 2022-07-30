@@ -74,7 +74,7 @@ public class NiflFile : FileResource
     public Rel0Header Rel0 { get; private set; }
     public Nof0Header Nof0 { get; private set; }
 
-    public NiflFile(Stream data) : base(data)
+    public NiflFile(Stream data) : base(data, null!)
     {
     }
 

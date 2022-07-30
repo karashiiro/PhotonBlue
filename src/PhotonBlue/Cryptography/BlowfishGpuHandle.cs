@@ -2,7 +2,7 @@ using ComputeSharp;
 
 namespace PhotonBlue.Cryptography;
 
-internal struct BlowfishGpuHandle : IDisposable
+public struct BlowfishGpuHandle : IDisposable
 {
     public UploadBuffer<uint2> Upload;
     public ReadBackBuffer<uint2> Download;

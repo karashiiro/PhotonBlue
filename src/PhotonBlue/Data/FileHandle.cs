@@ -1,10 +1,11 @@
 ﻿using System.IO.MemoryMappedFiles;
+using PhotonBlue.Cryptography;
 
 namespace PhotonBlue.Data;
 
 public class FileHandle<T> : BaseFileHandle where T : FileResource, new()
 {
-    internal FileHandle(string path) : base(path)
+    internal FileHandle(string path, IObjectPool<BlowfishGpuHandle, Blowfish> blowfishGpuPool) : base(path, blowfishGpuPool)
     {
     }
 
@@ -16,7 +17,7 @@ public class FileHandle<T> : BaseFileHandle where T : FileResource, new()
             using var mmf =
                 MemoryMappedFile.CreateFromFile(Path, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
             using var data = mmf.CreateViewStream(0, 0, MemoryMappedFileAccess.Read);
-            var file = FileResource.FromStream<T>(data);
+            var file = FileResource.FromStream<T>(data, BlowfishGpuPool);
             file.LoadFile();
 
             CompleteLoad(file);
@@ -39,7 +40,7 @@ public class FileHandle<T> : BaseFileHandle where T : FileResource, new()
             using var mmf =
                 MemoryMappedFile.CreateFromFile(Path, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
             using var data = mmf.CreateViewStream(0, 0, MemoryMappedFileAccess.Read);
-            var file = FileResource.FromStream<T>(data);
+            var file = FileResource.FromStream<T>(data, BlowfishGpuPool);
             file.LoadHeadersOnly();
 
             CompleteLoad(file);
