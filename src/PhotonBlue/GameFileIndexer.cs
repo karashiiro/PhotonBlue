@@ -1,21 +1,24 @@
 ﻿using PhotonBlue.Data;
 using PhotonBlue.Data.Files;
+using PhotonBlue.Persistence;
 
 namespace PhotonBlue;
 
 public class GameFileIndexer : IGameFileIndexer
 {
-    private readonly List<(BaseFileHandle, string, string?, string)> _files;
+    private readonly List<ParsedFilePath> _files;
     private readonly FileHandleManager _fileHandleManager;
+    private readonly IGameFileIndex _index;
 
-    public int DiskFilesRead { get; private set; }
+    public int PacksRead { get; private set; }
     
-    public int DiskFileCount => _files.Count;
+    public int PackCount => _files.Count;
 
-    public GameFileIndexer(FileHandleManager fileHandleManager)
+    public GameFileIndexer(FileHandleManager fileHandleManager, IGameFileIndex index)
     {
-        _files = new List<(BaseFileHandle, string, string?, string)>();
+        _files = new List<ParsedFilePath>();
         _fileHandleManager = fileHandleManager;
+        _index = index;
     }
 
     public void LoadFromDataPath(string dataPath)
@@ -64,12 +67,7 @@ public class GameFileIndexer : IGameFileIndexer
                 // Currently only processing ICE files; will add more once this works
                 var handle = _fileHandleManager.CreateHandle<IceV4File>(p, false);
                 return ((BaseFileHandle)handle, s, r, f);
-            }));
-    }
-
-    public IEnumerable<ParsedFilePath> ListFiles()
-    {
-        return _files
+            })
             .SelectMany(file =>
             {
                 var (h, s, r, f) = file;
@@ -78,14 +76,14 @@ public class GameFileIndexer : IGameFileIndexer
                 if (h is FileHandle<IceV4File> handle)
                 {
                     h.Reset.Wait();
-                    
+
                     if (h.State == BaseFileHandle.FileState.Error)
                     {
-                        DiskFilesRead++;
+                        PacksRead++;
                         return Enumerable.Empty<ParsedFilePath?>();
                     }
 
-                    DiskFilesRead++;
+                    PacksRead++;
                     var ice = handle.Value!;
                     return ice.Group1Entries
                         .Select(entry =>
@@ -97,10 +95,15 @@ public class GameFileIndexer : IGameFileIndexer
                                     $"{s}/{(r != null ? r + '/' : "")}{f}/{entry.Header.FileName}")));
                 }
 
-                DiskFilesRead++;
+                PacksRead++;
                 return Enumerable.Empty<ParsedFilePath?>();
             })
             .Where(path => path is not null)
-            .Select(path => path!);
+            .Select(path => path!));
+    }
+
+    public IEnumerable<ParsedFilePath> ListFiles()
+    {
+        return _files;
     }
 }

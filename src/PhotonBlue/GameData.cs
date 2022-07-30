@@ -1,4 +1,5 @@
 ﻿using PhotonBlue.Data;
+using PhotonBlue.Persistence;
 
 namespace PhotonBlue;
 
@@ -9,7 +10,9 @@ public sealed class GameData : IDisposable
     /// </summary>
     public DirectoryInfo DataPath { get; }
     
-    public IGameFileIndexer Index { get; }
+    public IGameFileIndexer Indexer { get; }
+    
+    public IGameFileIndex Index { get; }
 
     /// <summary>
     /// Provides access to the <see cref="FileHandleManager"/> which allows you to create new <see cref="FileHandle{T}"/>s which then allows you to
@@ -17,7 +20,7 @@ public sealed class GameData : IDisposable
     /// </summary>
     private FileHandleManager FileHandleManager { get; }
 
-    public GameData(string pso2BinPath)
+    public GameData(string pso2BinPath, IGameFileIndex? index = null)
     {
         DataPath = new DirectoryInfo(pso2BinPath);
 
@@ -32,7 +35,8 @@ public sealed class GameData : IDisposable
         }
 
         FileHandleManager = new FileHandleManager();
-        Index = new GameFileIndexer(FileHandleManager);
+        Index = index ?? new MemoryIndex();
+        Indexer = new GameFileIndexer(FileHandleManager, Index);
     }
 
     /// <summary>

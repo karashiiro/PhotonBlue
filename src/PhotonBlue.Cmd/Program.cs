@@ -2,9 +2,9 @@
 
 const string binPath = @"D:\PHANTASYSTARONLINE2_JP\pso2_bin";
 using var gameData = new GameData(binPath);
-gameData.Index.LoadFromDataPath(binPath);
+gameData.Indexer.LoadFromDataPath(binPath);
 
-foreach (var path in gameData.Index.ListFiles())
+foreach (var path in gameData.Indexer.ListFiles())
 {
-    Console.WriteLine($"{gameData.Index.DiskFilesRead}/{gameData.Index.DiskFileCount}: {path.FileName}");
+    Console.WriteLine($"{gameData.Indexer.PacksRead}/{gameData.Indexer.PackCount}: {path.FileName}");
 }
