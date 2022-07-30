@@ -7,17 +7,17 @@ namespace PhotonBlue;
 public class GameFileIndexer : IGameFileIndexer
 {
     private readonly List<ParsedFilePath> _files;
-    private readonly FileHandleManager _fileHandleManager;
+    private readonly IFileHandleProvider _fileHandleProvider;
     private readonly IGameFileIndex _index;
 
     public int PacksRead { get; private set; }
     
     public int PackCount => _files.Count;
 
-    public GameFileIndexer(FileHandleManager fileHandleManager, IGameFileIndex index)
+    public GameFileIndexer(IFileHandleProvider fileHandleProvider, IGameFileIndex index)
     {
         _files = new List<ParsedFilePath>();
-        _fileHandleManager = fileHandleManager;
+        _fileHandleProvider = fileHandleProvider;
         _index = index;
     }
 
@@ -65,7 +65,7 @@ public class GameFileIndexer : IGameFileIndexer
                 var (p, s, r, f) = file;
 
                 // Currently only processing ICE files; will add more once this works
-                var handle = _fileHandleManager.CreateHandle<IceV4File>(p, false);
+                var handle = _fileHandleProvider.CreateHandle<IceV4File>(p, false);
                 return ((BaseFileHandle)handle, s, r, f);
             })
             .SelectMany(file =>

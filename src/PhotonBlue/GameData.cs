@@ -15,10 +15,10 @@ public sealed class GameData : IDisposable
     public IGameFileIndex Index { get; }
 
     /// <summary>
-    /// Provides access to the <see cref="FileHandleManager"/> which allows you to create new <see cref="FileHandle{T}"/>s which then allows you to
-    /// easily defer file loading onto another thread.
+    /// Provides access to the <see cref="FileHandleManager"/> which allows you to create new
+    /// <see cref="FileHandle{T}"/>s which then allows you to easily defer file loading onto another thread.
     /// </summary>
-    private FileHandleManager FileHandleManager { get; }
+    public IFileHandleProvider FileHandleManager { get; }
 
     public GameData(string pso2BinPath, IGameFileIndex? index = null)
     {
