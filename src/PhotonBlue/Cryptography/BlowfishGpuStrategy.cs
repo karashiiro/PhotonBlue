@@ -14,7 +14,7 @@ internal class BlowfishGpuStrategy : BlowfishStrategy
     private bool _disposed;
 
     // TODO: Set up dependency injection or something
-    private static readonly BlowfishGpuBufferPool GpuPool = new();
+    private static readonly IObjectPool<BlowfishGpuHandle, Blowfish> GpuPool = new BlowfishGpuBufferPool();
 
     public BlowfishGpuStrategy(Blowfish blowfish)
     {
