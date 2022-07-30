@@ -15,10 +15,12 @@ public sealed class GameData : IDisposable
     public IGameFileIndex Index { get; }
 
     /// <summary>
-    /// Provides access to the <see cref="FileHandleManager"/> which allows you to create new
+    /// Provides access to the <see cref="IFileHandleProvider"/> which allows you to create new
     /// <see cref="FileHandle{T}"/>s which then allows you to easily defer file loading onto another thread.
     /// </summary>
-    public IFileHandleProvider FileHandleManager { get; }
+    public IFileHandleProvider FileHandleProvider => _fileHandleManager;
+
+    private readonly FileHandleManager _fileHandleManager;
 
     public GameData(string pso2BinPath, IGameFileIndex? index = null)
     {
@@ -34,9 +36,9 @@ public sealed class GameData : IDisposable
             throw new ArgumentException("DataPath must point to the pso2_bin directory.", nameof(pso2BinPath));
         }
 
-        FileHandleManager = new FileHandleManager();
+        _fileHandleManager = new FileHandleManager();
         Index = index ?? new MemoryIndex();
-        Indexer = new GameFileIndexer(FileHandleManager, Index);
+        Indexer = new GameFileIndexer(_fileHandleManager, Index);
     }
 
     /// <summary>
@@ -101,11 +103,11 @@ public sealed class GameData : IDisposable
     /// <returns></returns>
     public FileHandle<T> GetFileHandle<T>(string path, bool loadComplete = true) where T : FileResource, new()
     {
-        return FileHandleManager.CreateHandle<T>(path, loadComplete);
+        return _fileHandleManager.CreateHandle<T>(path, loadComplete);
     }
 
     public void Dispose()
     {
-        FileHandleManager.Dispose();
+        _fileHandleManager.Dispose();
     }
 }
