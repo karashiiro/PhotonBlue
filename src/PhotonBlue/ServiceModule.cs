@@ -5,7 +5,7 @@ using PhotonBlue.Persistence;
 
 namespace PhotonBlue;
 
-public class ServiceModule : NinjectModule
+internal class ServiceModule : NinjectModule
 {
     private readonly Func<IGameFileIndex>? _indexProvider;
 
