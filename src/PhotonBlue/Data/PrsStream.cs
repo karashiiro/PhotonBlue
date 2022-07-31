@@ -19,7 +19,7 @@ internal sealed class PrsStream : Stream
         {
             var toRead = Math.Min(buffer.Length, Size - BytesRead);
             BytesRead += toRead;
-            
+
             var copyTarget = buffer[..toRead];
             for (var i = 0; i < copyTarget.Length; i++)
             {
@@ -41,7 +41,7 @@ internal sealed class PrsStream : Stream
                     lookaroundOffset %= lookaround.Length;
                 }
             }
-            
+
             return toRead;
         }
 
@@ -68,13 +68,17 @@ internal sealed class PrsStream : Stream
         }
     }
 
-    private enum PrsInstruction
+    // Making this a long seems to significantly improve decompression
+    // speeds. I suspect that this is because GetNextInstruction returns
+    // a tuple of (PrsInstruction, int, int), and making this into an
+    // 8-byte value allows that struct to be naturally memory-aligned.
+    private enum PrsInstruction : long
     {
         Eof,
         Literal,
         Pointer,
     }
-    
+
     private struct ControlByte
     {
         public byte Data;
@@ -439,7 +443,7 @@ internal sealed class PrsStream : Stream
     private static bool CanFastCopy(int lookaroundIndex, int lookaroundLength, int loadIndex, int size)
     {
         return Math.Max(lookaroundIndex, loadIndex) + size < lookaroundLength &&
-            Math.Abs(lookaroundIndex - loadIndex) > size;
+               Math.Abs(lookaroundIndex - loadIndex) > size;
     }
 
     /// <summary>
@@ -568,7 +572,7 @@ internal sealed class PrsStream : Stream
         {
             ArrayPool<byte>.Shared.Return(_lookaroundRaw);
         }
-        
+
         base.Dispose(disposing);
     }
 }
