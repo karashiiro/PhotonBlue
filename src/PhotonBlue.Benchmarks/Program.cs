@@ -1,4 +1,4 @@
 ﻿using BenchmarkDotNet.Running;
-using PhotonBlue.IceV4Benchmark;
+using PhotonBlue.Benchmarks;
 
 BenchmarkRunner.Run<IceV4Parsing>();

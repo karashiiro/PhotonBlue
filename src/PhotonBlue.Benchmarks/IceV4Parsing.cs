@@ -5,7 +5,7 @@ using BenchmarkDotNet.Toolchains.InProcess.Emit;
 using PhotonBlue.Cryptography;
 using PhotonBlue.Data.Files;
 
-namespace PhotonBlue.IceV4Benchmark;
+namespace PhotonBlue.Benchmarks;
 
 [Config(typeof(IceV4ParsingConfig))]
 public class IceV4Parsing

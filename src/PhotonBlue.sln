@@ -20,8 +20,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PhotonBlue.Ooz", "PhotonBlu
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PhotonBlue.Cmd", "PhotonBlue.Cmd\PhotonBlue.Cmd.csproj", "{54BEF3C6-B5D7-41A1-8CBE-FFF162D78D79}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PhotonBlue.IceV4Benchmark", "PhotonBlue.IceV4Benchmark\PhotonBlue.IceV4Benchmark.csproj", "{7C8C80CE-CD8D-4A36-91FC-45BEE207DFF4}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Documentation", "Documentation", "{54BF9BEA-2CDA-4501-9286-CAD01ACBB22E}"
 	ProjectSection(SolutionItems) = preProject
 		..\docfx\articles\intro.md = ..\docfx\articles\intro.md
@@ -29,6 +27,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Documentation", "Documentat
 		..\docfx\articles\getting-started.md = ..\docfx\articles\getting-started.md
 		..\docfx\articles\performance-considerations.md = ..\docfx\articles\performance-considerations.md
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PhotonBlue.Benchmarks", "PhotonBlue.Benchmarks\PhotonBlue.Benchmarks.csproj", "{3963EEF5-F2C9-4755-B20D-D6048A8AD71B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -48,10 +48,6 @@ Global
 		{54BEF3C6-B5D7-41A1-8CBE-FFF162D78D79}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{54BEF3C6-B5D7-41A1-8CBE-FFF162D78D79}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{54BEF3C6-B5D7-41A1-8CBE-FFF162D78D79}.Release|Any CPU.Build.0 = Release|Any CPU
-		{7C8C80CE-CD8D-4A36-91FC-45BEE207DFF4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{7C8C80CE-CD8D-4A36-91FC-45BEE207DFF4}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{7C8C80CE-CD8D-4A36-91FC-45BEE207DFF4}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{7C8C80CE-CD8D-4A36-91FC-45BEE207DFF4}.Release|Any CPU.Build.0 = Release|Any CPU
 		{B6748219-A0E7-46BB-AE38-5343961CB36A}.Debug|Any CPU.ActiveCfg = Debug|x64
 		{B6748219-A0E7-46BB-AE38-5343961CB36A}.Debug|Any CPU.Build.0 = Debug|x64
 		{B6748219-A0E7-46BB-AE38-5343961CB36A}.Release|Any CPU.ActiveCfg = Release|x64
@@ -60,5 +56,9 @@ Global
 		{06122773-8C0D-44D8-B021-9D2044EDA7CA}.Debug|Any CPU.Build.0 = Debug|x64
 		{06122773-8C0D-44D8-B021-9D2044EDA7CA}.Release|Any CPU.ActiveCfg = Release|x64
 		{06122773-8C0D-44D8-B021-9D2044EDA7CA}.Release|Any CPU.Build.0 = Release|x64
+		{3963EEF5-F2C9-4755-B20D-D6048A8AD71B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3963EEF5-F2C9-4755-B20D-D6048A8AD71B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3963EEF5-F2C9-4755-B20D-D6048A8AD71B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3963EEF5-F2C9-4755-B20D-D6048A8AD71B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
