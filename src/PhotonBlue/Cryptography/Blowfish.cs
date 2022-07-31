@@ -1,7 +1,5 @@
 ﻿using System.Buffers;
-using System.Numerics;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 
 // ReSharper disable ForCanBeConvertedToForeach
 
@@ -227,13 +225,13 @@ public sealed class Blowfish : IDisposable
         S[1] = ArrayPool<uint>.Shared.Rent(SInitial[1].Length);
         S[2] = ArrayPool<uint>.Shared.Rent(SInitial[2].Length);
         S[3] = ArrayPool<uint>.Shared.Rent(SInitial[3].Length);
-        
-        Buffer.BlockCopy(PInitial, 0, P, 0, PInitial.Length * sizeof(uint));
-        Buffer.BlockCopy(SInitial[0], 0, S[0], 0, SInitial[0].Length * sizeof(uint));
-        Buffer.BlockCopy(SInitial[1], 0, S[1], 0, SInitial[1].Length * sizeof(uint));
-        Buffer.BlockCopy(SInitial[2], 0, S[2], 0, SInitial[2].Length * sizeof(uint));
-        Buffer.BlockCopy(SInitial[3], 0, S[3], 0, SInitial[3].Length * sizeof(uint));
-        
+
+        Array.Copy(PInitial, 0, P, 0, PInitial.Length);
+        Array.Copy(SInitial[0], 0, S[0], 0, SInitial[0].Length);
+        Array.Copy(SInitial[1], 0, S[1], 0, SInitial[1].Length);
+        Array.Copy(SInitial[2], 0, S[2], 0, SInitial[2].Length);
+        Array.Copy(SInitial[3], 0, S[3], 0, SInitial[3].Length);
+
         // Execute key schedule:
         // The key bytes need to be reversed when the P-array is initialized.
         Span<byte> keyCopy = stackalloc byte[sizeof(uint)];
@@ -242,22 +240,20 @@ public sealed class Blowfish : IDisposable
         var keyExt = BitConverter.ToUInt32(keyCopy);
         for (var i = 0; i < PInitial.Length; i++)
         {
-            GetPBoxElementRef(i) ^= keyExt;
+            P[i] ^= keyExt;
         }
 
-        var x = 0UL;
-        ref var p0 = ref Unsafe.As<uint, ulong>(ref GetPBoxElementRef(0));
-        for (var i = 0; i < PInitial.Length / 2; i++)
+        uint l = 0, r = 0;
+        for (var i = 0; i < PInitial.Length; i += 2)
         {
-            x = Unsafe.Add(ref p0, i) = Encrypt(ref p0, x);
+            (l, r) = (P[i], P[i + 1]) = Encrypt(l, r);
         }
 
         for (var i = 0; i < SInitial.Length; i++)
         {
-            ref var si = ref Unsafe.As<uint, ulong>(ref S[i][0]);
-            for (var j = 0; j < SInitial[0].Length / 2; j++)
+            for (var j = 0; j < SInitial[0].Length; j += 2)
             {
-                x = Unsafe.Add(ref si, j) = Encrypt(ref p0, x);
+                (l, r) = (S[i][j], S[i][j + 1]) = Encrypt(l, r);
             }
         }
     }
@@ -285,11 +281,11 @@ public sealed class Blowfish : IDisposable
 
     public void DecryptStandard(Span<byte> data)
     {
-        ref var p0 = ref Unsafe.As<uint, ulong>(ref P[0]);
         for (var i = 0; i < data.Length; i += 8)
         {
-            var x = Decrypt(ref p0, ToUInt64(data.Slice(i, 8)));
-            Unsafe.As<byte, ulong>(ref data[i]) = x;
+            var (l, r) = Decrypt(BitConverter.ToUInt32(data.Slice(i, 4)), BitConverter.ToUInt32(data.Slice(i + 4, 4)));
+            Unsafe.As<byte, uint>(ref data[i]) = l;
+            Unsafe.As<byte, uint>(ref data[i + 4]) = r;
         }
     }
 
@@ -297,26 +293,12 @@ public sealed class Blowfish : IDisposable
     {
         // SEGA seems to have rolled their own Blowfish implementation which ignores
         // the last (8 - data.Length % 8) bytes.
-        ref var p0 = ref Unsafe.As<uint, ulong>(ref P[0]);
         for (var i = 0; i + 7 < data.Length; i += 8)
         {
-            var x = Decrypt(ref p0, ToUInt64(data.Slice(i, 8)));
-            Unsafe.As<byte, ulong>(ref data[i]) = x;
+            var (l, r) = Decrypt(BitConverter.ToUInt32(data.Slice(i, 4)), BitConverter.ToUInt32(data.Slice(i + 4, 4)));
+            Unsafe.As<byte, uint>(ref data[i]) = l;
+            Unsafe.As<byte, uint>(ref data[i + 4]) = r;
         }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static ulong ToUInt64(ReadOnlySpan<byte> data)
-    {
-        // This is just BitConverter.ToUInt64, but without its length check.
-        return Unsafe.ReadUnaligned<ulong>(ref MemoryMarshal.GetReference(data));
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private ref uint GetPBoxElementRef(nint index)
-    {
-        ref var data = ref MemoryMarshal.GetArrayDataReference(P);
-        return ref Unsafe.Add(ref data, index);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -326,63 +308,30 @@ public sealed class Blowfish : IDisposable
                 S[2][(int)((x >> 8) & 0xFF)]) + S[3][x & 0xFF];
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private ulong Fu64(uint x)
-    {
-        // This variant returns a ulong to avoid some integer width adjustment ops later
-        return ((S[0][(int)(x >> 24)] + S[1][(int)((x >> 16) & 0xFF)]) ^
-                S[2][(int)((x >> 8) & 0xFF)]) + S[3][x & 0xFF];
-    }
-
     private (uint, uint) Encrypt(uint l, uint r)
     {
         for (var i = 0; i < Rounds; i += 2)
         {
-            l ^= GetPBoxElementRef(i);
-            r ^= GetPBoxElementRef(i + 1);
+            l ^= P[i];
+            r ^= P[i + 1];
             r ^= F(l);
             l ^= F(r);
         }
 
-        return (r ^ GetPBoxElementRef(17), l ^ GetPBoxElementRef(16));
+        return (r ^ P[17], l ^ P[16]);
     }
 
-    private ulong Encrypt(ref ulong p0, ulong x)
+    private (uint, uint) Decrypt(uint l, uint r)
     {
-        for (var i = 0; i < Rounds / 2; i++)
+        for (var i = Rounds; i > 0; i -= 2)
         {
-            // Parallel XOR
-            x ^= Unsafe.Add(ref p0, i);
-
-            // XOR the low and high halves of x separately
-            x ^= Fu64((uint)x) << 32;
-            x ^= Fu64((uint)(x >> 32));
+            l ^= P[i + 1];
+            r ^= F(l);
+            r ^= P[i];
+            l ^= F(r);
         }
 
-        // Parallel XOR
-        x ^= Unsafe.Add(ref p0, 8);
-
-        // Swap the low and high halves of x
-        return BitOperations.RotateRight(x, 32);
-    }
-
-    private ulong Decrypt(ref ulong p0, ulong x)
-    {
-        // Swap the low and high halves of x
-        x = BitOperations.RotateRight(x, 32);
-
-        for (var i = Rounds / 2; i > 0; i--)
-        {
-            // Parallel XOR
-            x ^= Unsafe.Add(ref p0, i);
-
-            // XOR the low and high halves of x separately
-            x ^= Fu64((uint)(x >> 32));
-            x ^= Fu64((uint)x) << 32;
-        }
-
-        // Parallel XOR
-        return x ^ p0;
+        return (r ^ P[0], l ^ P[1]);
     }
 
     public void Dispose()
@@ -390,7 +339,7 @@ public sealed class Blowfish : IDisposable
         if (!_disposed)
         {
             _disposed = true;
-            
+
             ArrayPool<uint>.Shared.Return(S[3]);
             ArrayPool<uint>.Shared.Return(S[2]);
             ArrayPool<uint>.Shared.Return(S[1]);

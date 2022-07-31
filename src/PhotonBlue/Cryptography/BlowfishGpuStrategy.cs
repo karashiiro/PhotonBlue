@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using ComputeSharp;
 
 namespace PhotonBlue.Cryptography;
@@ -21,11 +22,12 @@ internal class BlowfishGpuStrategy : BlowfishStrategy
         _buffers = _gpuPool.Acquire(_blowfish);
     }
 
-    public override unsafe void Decrypt(Span<byte> data)
+    public override void Decrypt(Span<byte> data)
     {
         Debug.Assert(data.Length % 8 == 0, "Decrypt payload is not a multiple of 8 bytes long.");
 
-        var dataEx = new Span<uint2>(Unsafe.AsPointer(ref data[0]), data.Length / sizeof(uint2));
+        var dataEx = MemoryMarshal.Cast<byte, uint2>(data);
+        var elementSize = Unsafe.SizeOf<uint2>();
         for (var i = 0; i < dataEx.Length; i += _buffers.Data.Length)
         {
             // Calculate the length of the data to decrypt
@@ -33,7 +35,7 @@ internal class BlowfishGpuStrategy : BlowfishStrategy
             if (len < RecommendedThreshold)
             {
                 // Decrypt small blocks of data on the CPU, even though we have buffers set up already.
-                _blowfish.DecryptStandard(data.Slice(i * sizeof(uint2), len * sizeof(uint2)));
+                _blowfish.DecryptStandard(data.Slice(i * elementSize, len * elementSize));
             }
             else
             {

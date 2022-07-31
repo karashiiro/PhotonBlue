@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using ComputeSharp;
 
 namespace PhotonBlue.Cryptography;
@@ -6,10 +7,10 @@ namespace PhotonBlue.Cryptography;
 public sealed class BlowfishGpuBufferPool : IObjectPool<BlowfishGpuHandle, Blowfish>, IDisposable
 {
     public const int DataBufferSize = 524288;
-    
+
     private const int MaxConcurrency = 50;
     private const int MinConcurrency = 5;
-    
+
     private static readonly GraphicsDevice Gpu = GraphicsDevice.Default;
 
     private readonly ConcurrentQueue<BlowfishGpuHandle> _items;
@@ -21,7 +22,7 @@ public sealed class BlowfishGpuBufferPool : IObjectPool<BlowfishGpuHandle, Blowf
         _semaphore = new SemaphoreSlim(MaxConcurrency, MaxConcurrency);
     }
 
-    public unsafe BlowfishGpuHandle Acquire(Blowfish state)
+    public BlowfishGpuHandle Acquire(Blowfish state)
     {
         _semaphore.Wait();
 
@@ -38,16 +39,17 @@ public sealed class BlowfishGpuBufferPool : IObjectPool<BlowfishGpuHandle, Blowf
             return handle;
         }
 
+        var elementSize = Unsafe.SizeOf<uint2>();
         handle = new BlowfishGpuHandle
         {
-            Upload = Gpu.AllocateUploadBuffer<uint2>(DataBufferSize / sizeof(uint2)),
-            Download = Gpu.AllocateReadBackBuffer<uint2>(DataBufferSize / sizeof(uint2)),
+            Upload = Gpu.AllocateUploadBuffer<uint2>(DataBufferSize / elementSize),
+            Download = Gpu.AllocateReadBackBuffer<uint2>(DataBufferSize / elementSize),
             S0 = Gpu.AllocateConstantBuffer<uint>(state.S[0].AsSpan(0, 256)),
             S1 = Gpu.AllocateConstantBuffer<uint>(state.S[1].AsSpan(0, 256)),
             S2 = Gpu.AllocateConstantBuffer<uint>(state.S[2].AsSpan(0, 256)),
             S3 = Gpu.AllocateConstantBuffer<uint>(state.S[3].AsSpan(0, 256)),
             P = Gpu.AllocateConstantBuffer<uint>(state.P.AsSpan(0, 18)),
-            Data = Gpu.AllocateReadWriteBuffer<uint2>(DataBufferSize / sizeof(uint2)),
+            Data = Gpu.AllocateReadWriteBuffer<uint2>(DataBufferSize / elementSize),
         };
 
         return handle;
