@@ -6,13 +6,14 @@ namespace PhotonBlue;
 
 public class GameFileIndexer : IGameFileIndexer
 {
-    private readonly List<ParsedFilePath> _files;
     private readonly IFileHandleProvider _fileHandleProvider;
     private readonly IGameFileIndex _index;
+    
+    private IEnumerable<ParsedFilePath> _files;
 
     public int PacksRead { get; private set; }
     
-    public int PackCount => _files.Count;
+    public int PackCount { get; private set; }
 
     public GameFileIndexer(IFileHandleProvider fileHandleProvider, IGameFileIndex index)
     {
@@ -42,24 +43,26 @@ public class GameFileIndexer : IGameFileIndexer
         // Enumerate all of the relevant file paths
         var win32Path = Path.Combine(dataPath, "data", "win32");
         var win32RebootPath = Path.Combine(dataPath, "data", "win32reboot");
-        var allFiles = Enumerable.Empty<(string, string, string?, string)>();
+        var allFiles = new List<(string, string, string?, string)>();
 
         if (Directory.Exists(win32Path))
         {
-            allFiles = allFiles.Concat(Directory.EnumerateFiles(win32Path, "", SearchOption.AllDirectories)
+            allFiles.AddRange(Directory.EnumerateFiles(win32Path, "", SearchOption.AllDirectories)
                 .Select<string, (string, string, string?, string)>(file =>
                     (file, "win32", null, Path.GetFileName(file))));
         }
 
         if (Directory.Exists(win32RebootPath))
         {
-            allFiles = allFiles.Concat(Directory.EnumerateFiles(win32RebootPath, "", SearchOption.AllDirectories)
+            allFiles.AddRange(Directory.EnumerateFiles(win32RebootPath, "", SearchOption.AllDirectories)
                 .Select<string, (string, string, string?, string)>(file => (file, "win32reboot",
                     new DirectoryInfo(Path.GetDirectoryName(file)!).Name, Path.GetFileName(file))));
         }
 
+        PackCount = allFiles.Count;
+
         // Process the files
-        _files.AddRange(allFiles
+        _files = allFiles
             .Select(file =>
             {
                 var (p, s, r, f) = file;
@@ -99,7 +102,7 @@ public class GameFileIndexer : IGameFileIndexer
                 return Enumerable.Empty<ParsedFilePath?>();
             })
             .Where(path => path is not null)
-            .Select(path => path!));
+            .Select(path => path!);
     }
 
     public IEnumerable<ParsedFilePath> ListFiles()
