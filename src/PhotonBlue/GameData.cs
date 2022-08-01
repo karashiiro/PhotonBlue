@@ -22,9 +22,11 @@ public sealed class GameData : IDisposable
     /// </summary>
     public IFileHandleProvider FileHandleProvider => _kernel.Get<IFileHandleProvider>();
 
+    // ReSharper disable once PrivateFieldCanBeConvertedToLocalVariable
+    private readonly PhotonBlueOptions _options;
     private readonly IKernel _kernel;
 
-    public GameData(string pso2BinPath, Func<IGameFileIndex>? indexProvider = null)
+    public GameData(string pso2BinPath, PhotonBlueOptions? options = null)
     {
         DataPath = new DirectoryInfo(pso2BinPath);
 
@@ -38,7 +40,8 @@ public sealed class GameData : IDisposable
             throw new ArgumentException("DataPath must point to the pso2_bin directory.", nameof(pso2BinPath));
         }
 
-        _kernel = new StandardKernel(new ServiceModule(indexProvider));
+        _options = options ?? PhotonBlueOptions.Default;
+        _kernel = new StandardKernel(new ServiceModule(_options.IndexProvider));
     }
 
     /// <summary>
