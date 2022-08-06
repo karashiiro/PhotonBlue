@@ -6,11 +6,16 @@ public class MemoryIndex : IGameFileIndex
 {
     private readonly ConcurrentDictionary<string, IndexRepository> _repositories = new();
     private readonly ConcurrentDictionary<string, IndexPack> _packs = new();
-    private readonly ConcurrentDictionary<string, IndexFileEntry> _fileEntries = new();
+    private readonly ConcurrentDictionary<(string, string), IndexFileEntry> _fileEntries = new();
 
     public IEnumerable<IndexRepository> GetAllRepositories()
     {
         return _repositories.Values;
+    }
+
+    public IndexRepository? GetRepository(string name)
+    {
+        return _repositories.TryGetValue(name, out var repository) ? repository : null;
     }
 
     public IEnumerable<IndexPack> GetAllPacks()
@@ -20,12 +25,27 @@ public class MemoryIndex : IGameFileIndex
 
     public IEnumerable<IndexPack> GetAllPacks(DateTime updatedBefore)
     {
-        return GetAllPacks().Where(pack => pack.UpdatedAt < updatedBefore);
+        return GetAllPacks().Where(pack => pack.UpdatedAt != null && pack.UpdatedAt < updatedBefore);
+    }
+
+    public IndexPack? GetPack(string hash)
+    {
+        return _packs.TryGetValue(hash, out var pack) ? pack : null;
     }
 
     public IEnumerable<IndexFileEntry> GetAllFileEntries()
     {
         return _fileEntries.Values;
+    }
+
+    public IEnumerable<IndexFileEntry> GetAllFileEntries(string fileName)
+    {
+        return GetAllFileEntries().Where(entry => entry.FileName == fileName);
+    }
+
+    public IndexFileEntry? GetFileEntry(string packHash, string fileName)
+    {
+        return _fileEntries.TryGetValue((packHash, fileName), out var fileEntry) ? fileEntry : null;
     }
 
     public void StoreRepository(IndexRepository repository)
@@ -37,13 +57,27 @@ public class MemoryIndex : IGameFileIndex
     public void StorePack(IndexPack pack)
     {
         ArgumentNullException.ThrowIfNull(pack.Hash);
+        ArgumentNullException.ThrowIfNull(pack.Repository);
+
+        if (GetRepository(pack.Repository) == null)
+        {
+            throw new ArgumentException("Pack repository does not exist.");
+        }
+
         _packs[pack.Hash] = pack;
     }
 
     public void StoreFileEntry(IndexFileEntry entry)
     {
+        ArgumentNullException.ThrowIfNull(entry.PackHash);
         ArgumentNullException.ThrowIfNull(entry.FileName);
-        _fileEntries[entry.FileName] = entry;
+
+        if (GetPack(entry.PackHash) == null)
+        {
+            throw new ArgumentException("File pack does not exist.");
+        }
+
+        _fileEntries[(entry.PackHash, entry.FileName)] = entry;
     }
 
     public void UpdateRepository(IndexRepository repository)

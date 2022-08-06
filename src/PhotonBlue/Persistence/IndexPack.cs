@@ -6,5 +6,5 @@ public class IndexPack
 
     public string? Repository { get; set; }
 
-    public DateTime UpdatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
 }

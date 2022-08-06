@@ -1,4 +1,5 @@
-﻿using PhotonBlue.Data;
+﻿using System.Diagnostics;
+using PhotonBlue.Data;
 using PhotonBlue.Data.Files;
 using PhotonBlue.Persistence;
 
@@ -8,11 +9,11 @@ public class GameFileIndexer : IGameFileIndexer
 {
     private readonly IFileHandleProvider _fileHandleProvider;
     private readonly IGameFileIndex _index;
-    
+
     private IEnumerable<ParsedFilePath> _files;
 
     public int PacksRead { get; private set; }
-    
+
     public int PackCount { get; private set; }
 
     public GameFileIndexer(IFileHandleProvider fileHandleProvider, IGameFileIndex index)
@@ -50,6 +51,10 @@ public class GameFileIndexer : IGameFileIndexer
             allFiles.AddRange(Directory.EnumerateFiles(win32Path, "", SearchOption.AllDirectories)
                 .Select<string, (string, string, string?, string)>(file =>
                     (file, "win32", null, Path.GetFileName(file))));
+            if (_index.GetRepository("win32") == null)
+            {
+                _index.StoreRepository(new IndexRepository { Name = "win32" });
+            }
         }
 
         if (Directory.Exists(win32RebootPath))
@@ -57,6 +62,10 @@ public class GameFileIndexer : IGameFileIndexer
             allFiles.AddRange(Directory.EnumerateFiles(win32RebootPath, "", SearchOption.AllDirectories)
                 .Select<string, (string, string, string?, string)>(file => (file, "win32reboot",
                     new DirectoryInfo(Path.GetDirectoryName(file)!).Name, Path.GetFileName(file))));
+            if (_index.GetRepository("win32reboot") == null)
+            {
+                _index.StoreRepository(new IndexRepository { Name = "win32reboot" });
+            }
         }
 
         PackCount = allFiles.Count;
@@ -66,6 +75,23 @@ public class GameFileIndexer : IGameFileIndexer
             .Select(file =>
             {
                 var (p, s, r, f) = file;
+
+                var hash = f;
+                if (!string.IsNullOrEmpty(r))
+                {
+                    hash = r + f;
+                }
+
+                if (_index.GetPack(hash) == null)
+                {
+                    Debug.Assert(!hash.Contains('/'));
+                    _index.StorePack(new IndexPack
+                    {
+                        Hash = hash,
+                        Repository = s,
+                        UpdatedAt = DateTime.UtcNow,
+                    });
+                }
 
                 // Currently only processing ICE files; will add more once this works
                 var handle = _fileHandleProvider.CreateHandle<IceV4File>(p, false);
@@ -88,14 +114,42 @@ public class GameFileIndexer : IGameFileIndexer
 
                     PacksRead++;
                     var ice = handle.Value!;
-                    return ice.Group1Entries
+                    var fileEntries = ice.Group1Entries
                         .Select(entry =>
                             ParsedFilePath.ParseFilePath(
                                 $"{s}/{(r != null ? r + '/' : "")}{f}/{entry.Header.FileName}"))
                         .Concat(ice.Group2Entries
                             .Select(entry =>
                                 ParsedFilePath.ParseFilePath(
-                                    $"{s}/{(r != null ? r + '/' : "")}{f}/{entry.Header.FileName}")));
+                                    $"{s}/{(r != null ? r + '/' : "")}{f}/{entry.Header.FileName}")))
+                        .Where(path => path != null)
+                        .ToList();
+
+                    var first = fileEntries[0];
+                    Debug.Assert(first != null);
+                    Debug.Assert(first.PackName != null);
+
+                    var pack = _index.GetPack(first.PackName);
+                    Debug.Assert(pack != null);
+
+                    foreach (var fileEntry in fileEntries)
+                    {
+                        Debug.Assert(fileEntry != null);
+                        Debug.Assert(fileEntry.PackName != null);
+                        Debug.Assert(fileEntry.FileName != null);
+
+                        var existing = _index.GetFileEntry(fileEntry.PackName, fileEntry.FileName);
+                        if (existing != null)
+                        {
+                            _index.DeleteFileEntry(existing);
+                        }
+
+                        _index.StoreFileEntry(new IndexFileEntry
+                        {
+                            PackHash = fileEntry.PackName,
+                            FileName = fileEntry.FileName,
+                        });
+                    }
                 }
 
                 PacksRead++;

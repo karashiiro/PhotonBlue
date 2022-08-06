@@ -4,11 +4,19 @@ public interface IGameFileIndex
 {
     IEnumerable<IndexRepository> GetAllRepositories();
 
+    IndexRepository? GetRepository(string name);
+
     IEnumerable<IndexPack> GetAllPacks();
 
     IEnumerable<IndexPack> GetAllPacks(DateTime updatedBefore);
 
+    IndexPack? GetPack(string hash);
+
     IEnumerable<IndexFileEntry> GetAllFileEntries();
+
+    IEnumerable<IndexFileEntry> GetAllFileEntries(string fileName);
+
+    IndexFileEntry? GetFileEntry(string packHash, string fileName);
 
     void StoreRepository(IndexRepository repository);
 
