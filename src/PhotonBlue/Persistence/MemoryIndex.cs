@@ -23,11 +23,6 @@ public class MemoryIndex : IGameFileIndex
         return _packs.Values;
     }
 
-    public IEnumerable<IndexPack> GetAllPacks(DateTime updatedBefore)
-    {
-        return GetAllPacks().Where(pack => pack.UpdatedAt != null && pack.UpdatedAt < updatedBefore);
-    }
-
     public IndexPack? GetPack(string hash)
     {
         return _packs.TryGetValue(hash, out var pack) ? pack : null;

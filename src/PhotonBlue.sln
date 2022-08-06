@@ -30,6 +30,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Documentation", "Documentat
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PhotonBlue.Benchmarks", "PhotonBlue.Benchmarks\PhotonBlue.Benchmarks.csproj", "{3963EEF5-F2C9-4755-B20D-D6048A8AD71B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PhotonBlue.Persistence.Sqlite", "PhotonBlue.Persistence.Sqlite\PhotonBlue.Persistence.Sqlite.csproj", "{F1F72233-6DE5-420F-80CE-DA231EA83B9D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -60,5 +62,9 @@ Global
 		{3963EEF5-F2C9-4755-B20D-D6048A8AD71B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3963EEF5-F2C9-4755-B20D-D6048A8AD71B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3963EEF5-F2C9-4755-B20D-D6048A8AD71B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F1F72233-6DE5-420F-80CE-DA231EA83B9D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F1F72233-6DE5-420F-80CE-DA231EA83B9D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F1F72233-6DE5-420F-80CE-DA231EA83B9D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F1F72233-6DE5-420F-80CE-DA231EA83B9D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

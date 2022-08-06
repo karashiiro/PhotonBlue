@@ -8,8 +8,6 @@ public interface IGameFileIndex
 
     IEnumerable<IndexPack> GetAllPacks();
 
-    IEnumerable<IndexPack> GetAllPacks(DateTime updatedBefore);
-
     IndexPack? GetPack(string hash);
 
     IEnumerable<IndexFileEntry> GetAllFileEntries();
