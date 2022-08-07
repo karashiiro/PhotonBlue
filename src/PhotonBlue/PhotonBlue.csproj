@@ -15,7 +15,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="ComputeSharp" Version="2.0.0-alpha.25" />
+      <PackageReference Include="ComputeSharp" Version="2.0.0-alpha.26" />
       <PackageReference Include="Ninject" Version="3.3.6" />
       <PackageReference Include="SmartThreadPool.dll" Version="2.3.0" />
     </ItemGroup>

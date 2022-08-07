@@ -47,7 +47,7 @@ internal class BlowfishGpuStrategy : BlowfishStrategy
                 _buffers.Upload.CopyTo(_buffers.Data);
 
                 // Run the compute shader
-                GraphicsDevice.Default.For(len, 1, 1, 8, 8, 1,
+                GraphicsDevice.GetDefault().For(len, 1, 1, 8, 8, 1,
                     new BlowfishShader(_buffers.S0, _buffers.S1, _buffers.S2, _buffers.S3, _buffers.P, _buffers.Data));
 
                 // Copy data back from the GPU

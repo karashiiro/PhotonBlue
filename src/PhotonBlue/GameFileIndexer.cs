@@ -70,8 +70,8 @@ public class GameFileIndexer : IGameFileIndexer
 
         PackCount = allFiles.Count;
 
-        // Process the files
-        _files = allFiles
+        // Dispatch jobs to the thread pool
+        var jobs = allFiles
             .Select(file =>
             {
                 var (p, s, r, f) = file;
@@ -97,7 +97,10 @@ public class GameFileIndexer : IGameFileIndexer
                 var handle = _fileHandleProvider.CreateHandle<IceV4File>(p, false);
                 return ((BaseFileHandle)handle, s, r, f);
             })
-            .SelectMany(file =>
+            .ToList();
+
+        // Create the enumerable that will produce results on-demand later
+        _files = jobs.SelectMany(file =>
             {
                 var (h, s, r, f) = file;
 
@@ -125,6 +128,11 @@ public class GameFileIndexer : IGameFileIndexer
                         .Where(path => path != null)
                         .ToList();
 
+                    if (!fileEntries.Any())
+                    {
+                        return Enumerable.Empty<ParsedFilePath?>();
+                    }
+
                     var first = fileEntries[0];
                     Debug.Assert(first != null);
                     Debug.Assert(first.PackName != null);
@@ -150,6 +158,8 @@ public class GameFileIndexer : IGameFileIndexer
                             FileName = fileEntry.FileName,
                         });
                     }
+
+                    return fileEntries;
                 }
 
                 PacksRead++;

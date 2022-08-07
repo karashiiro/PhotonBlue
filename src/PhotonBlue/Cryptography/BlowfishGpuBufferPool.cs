@@ -11,7 +11,7 @@ public sealed class BlowfishGpuBufferPool : IObjectPool<BlowfishGpuHandle, Blowf
     private const int MaxConcurrency = 50;
     private const int MinConcurrency = 5;
 
-    private static readonly GraphicsDevice Gpu = GraphicsDevice.Default;
+    private static readonly GraphicsDevice Gpu = GraphicsDevice.GetDefault();
 
     private readonly ConcurrentQueue<BlowfishGpuHandle> _items;
     private readonly SemaphoreSlim _semaphore;
