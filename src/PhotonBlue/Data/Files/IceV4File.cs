@@ -144,7 +144,7 @@ public class IceV4File : IceFile
         var totalFiles = group1FileCount + group2FileCount;
 
         // Extract the first group
-        var (group1Stream, junk1) = HandleGroupExtraction(Group1, _keys.GroupDataKeys[0], partitionedStream);
+        var (group1Stream, junk1) = HandleGroupExtraction(Group1, _keys.Group1DataKey1, _keys.Group1DataKey2, partitionedStream);
         using var junk1Deferred = MicroDisposable<DisposableBundle>.Create(junk1, o => o.Dispose());
 
         Group1Entries = UnpackGroupHeadersOnly(0, group1FileCount, totalFiles, group1Stream);
@@ -155,7 +155,7 @@ public class IceV4File : IceFile
             partitionedStream.NextPartition();
 
             // Extract the next group
-            var (group2Stream, junk2) = HandleGroupExtraction(Group2, _keys.GroupDataKeys[1], partitionedStream);
+            var (group2Stream, junk2) = HandleGroupExtraction(Group2, _keys.Group2DataKey1, _keys.Group2DataKey2, partitionedStream);
             using var junk2Deferred = MicroDisposable<DisposableBundle>.Create(junk2, o => o.Dispose());
 
             Group2Entries = UnpackGroupHeadersOnly(group1FileCount, group2FileCount, totalFiles, group2Stream);
@@ -165,7 +165,7 @@ public class IceV4File : IceFile
     private void LoadFileEntries(PartitionedStream partitionedStream)
     {
         // Extract the first group
-        var (group1Stream, junk1) = HandleGroupExtraction(Group1, _keys.GroupDataKeys[0], partitionedStream);
+        var (group1Stream, junk1) = HandleGroupExtraction(Group1, _keys.Group1DataKey1, _keys.Group1DataKey2, partitionedStream);
         using var junk1Deferred = MicroDisposable<DisposableBundle>.Create(junk1, o => o.Dispose());
 
         Group1Entries = UnpackGroup(Group1, group1Stream);
@@ -174,15 +174,15 @@ public class IceV4File : IceFile
         partitionedStream.NextPartition();
 
         // Extract the next group
-        var (group2Stream, junk2) = HandleGroupExtraction(Group2, _keys.GroupDataKeys[1], partitionedStream);
+        var (group2Stream, junk2) = HandleGroupExtraction(Group2, _keys.Group2DataKey1, _keys.Group2DataKey2, partitionedStream);
         using var junk2Deferred = MicroDisposable<DisposableBundle>.Create(junk2, o => o.Dispose());
 
         Group2Entries = UnpackGroup(Group2, group2Stream);
     }
 
-    private (Stream, DisposableBundle) HandleGroupExtraction(GroupHeader group, IReadOnlyList<uint> keys, Stream data)
+    private (Stream, DisposableBundle) HandleGroupExtraction(GroupHeader group, uint key1, uint key2, Stream data)
     {
-        return data.Length == 0 ? (data, DisposableBundle.Empty) : DecodeGroup(group, keys, data);
+        return data.Length == 0 ? (data, DisposableBundle.Empty) : DecodeGroup(group, key1, key2, data);
     }
 
     private const int SecondPassThreshold = 102400;
@@ -191,11 +191,12 @@ public class IceV4File : IceFile
     /// Decrypts and decompresses an ICE group.
     /// </summary>
     /// <param name="group">The group header.</param>
-    /// <param name="keys">The group's decryption keys, if the file is encrypted.</param>
+    /// <param name="key1">The group's first decryption key, if the file is encrypted.</param>
+    /// <param name="key2">The group's first decryption key, if the file is encrypted.</param>
     /// <param name="data">The raw group data.</param>
-    private (Stream, DisposableBundle) DecodeGroup(GroupHeader group, IReadOnlyList<uint> keys, Stream data)
+    private (Stream, DisposableBundle) DecodeGroup(GroupHeader group, uint key1, uint key2, Stream data)
     {
-        var (decryptStream, junk) = PrepareGroupDecryption(data, keys);
+        var (decryptStream, junk) = PrepareGroupDecryption(data, key1, key2);
         return (DecompressGroup(group, decryptStream, junk), junk);
     }
 
@@ -203,25 +204,26 @@ public class IceV4File : IceFile
     /// Prepares a decryption stream over the provided encrypted group data stream.
     /// </summary>
     /// <param name="data">The group data stream.</param>
-    /// <param name="keys">The group's decryption keys, if the file is encrypted.</param>
+    /// <param name="key1">The group's first decryption key, if the file is encrypted.</param>
+    /// <param name="key2">The group's first decryption key, if the file is encrypted.</param>
     /// <returns></returns>
-    private (Stream, DisposableBundle) PrepareGroupDecryption(Stream data, IReadOnlyList<uint> keys)
+    private (Stream, DisposableBundle) PrepareGroupDecryption(Stream data, uint key1, uint key2)
     {
         var junk = new DisposableBundle();
 
         var decryptStream = data;
         if (Header.Flags.HasFlag(IceFileFlags.Encrypted))
         {
-            var floatageFish = new FloatageFishDecryptionStream(data, keys[0], 16);
+            var floatageFish = new FloatageFishDecryptionStream(data, key1, 16);
 
             // These need to get disposed, so we add them to the junk pile.
             Debug.Assert(BlowfishGpuPool != null, nameof(BlowfishGpuPool) + " != null");
-            decryptStream = new BlowfishDecryptionStream(BlowfishGpuPool, floatageFish, BitConverter.GetBytes(keys[0]));
+            decryptStream = new BlowfishDecryptionStream(BlowfishGpuPool, floatageFish, BitConverter.GetBytes(key1));
             junk.Objects.Add(decryptStream);
 
             if (data.Length <= SecondPassThreshold)
             {
-                decryptStream = new BlowfishDecryptionStream(BlowfishGpuPool, decryptStream, BitConverter.GetBytes(keys[1]));
+                decryptStream = new BlowfishDecryptionStream(BlowfishGpuPool, decryptStream, BitConverter.GetBytes(key2));
                 junk.Objects.Add(decryptStream);
             }
         }
@@ -331,14 +333,14 @@ public class IceV4File : IceFile
             (uint)((int)crc32.Checksum ^
                    (int)BitConverter.ToUInt32(magic, 108) ^ compressedSize ^ 1129510338);
         var key = GetBlowfishKey(magic, tempKey);
-        blowfishKeys.GroupDataKeys[0][0] = CalcBlowfishKey(magic, key);
-        blowfishKeys.GroupDataKeys[0][1] = GetBlowfishKey(magic, blowfishKeys.GroupDataKeys[0][0]);
-        blowfishKeys.GroupDataKeys[1][0] =
-            blowfishKeys.GroupDataKeys[0][0] >> 15 | blowfishKeys.GroupDataKeys[0][0] << 17;
-        blowfishKeys.GroupDataKeys[1][1] =
-            blowfishKeys.GroupDataKeys[0][1] >> 15 | blowfishKeys.GroupDataKeys[0][1] << 17;
+        blowfishKeys.Group1DataKey1 = CalcBlowfishKey(magic, key);
+        blowfishKeys.Group1DataKey2 = GetBlowfishKey(magic, blowfishKeys.Group1DataKey1);
+        blowfishKeys.Group2DataKey1 =
+            blowfishKeys.Group1DataKey1 >> 15 | blowfishKeys.Group1DataKey1 << 17;
+        blowfishKeys.Group2DataKey2 =
+            blowfishKeys.Group1DataKey2 >> 15 | blowfishKeys.Group1DataKey2 << 17;
 
-        var x = blowfishKeys.GroupDataKeys[0][0] << 13 | blowfishKeys.GroupDataKeys[0][0] >> 19;
+        var x = blowfishKeys.Group1DataKey1 << 13 | blowfishKeys.Group1DataKey1 >> 19;
         blowfishKeys.GroupHeadersKey = x;
     }
 
@@ -367,14 +369,9 @@ public class IceV4File : IceFile
     private class BlowfishKeys
     {
         public uint GroupHeadersKey;
-
-        public uint[][] GroupDataKeys { get; }
-
-        public BlowfishKeys()
-        {
-            GroupDataKeys = new uint[2][];
-            GroupDataKeys[0] = new uint[2];
-            GroupDataKeys[1] = new uint[2];
-        }
+        public uint Group1DataKey1;
+        public uint Group1DataKey2;
+        public uint Group2DataKey1;
+        public uint Group2DataKey2;
     }
 }

@@ -26,6 +26,7 @@ internal sealed class BlowfishDecryptionStream : Stream
     // throughput when single bytes are being read at a time.
     private readonly ArraySegment<byte> _hold;
     private readonly byte[] _holdRaw;
+    private readonly bool _holdPooled;
     private int _holdStart;
     private int _holdEnd;
 
@@ -41,7 +42,8 @@ internal sealed class BlowfishDecryptionStream : Stream
     private const int GpuMaxBufferSize = BlowfishGpuBufferPool.DataBufferSize;
     private const int CpuMaxBufferSize = 8;
 
-    public BlowfishDecryptionStream(IObjectPool<BlowfishGpuHandle, Blowfish> gpuPool, Stream data, ReadOnlySpan<byte> key)
+    public BlowfishDecryptionStream(IObjectPool<BlowfishGpuHandle, Blowfish> gpuPool, Stream data,
+        ReadOnlySpan<byte> key)
     {
         // This does well on small files and on large files that we read the entirety of.
         // In the worst case, we select the GPU decryption strategy for a large file and then
@@ -57,7 +59,9 @@ internal sealed class BlowfishDecryptionStream : Stream
             ? new BlowfishGpuStrategy(gpuPool, _blowfish)
             : new BlowfishCpuStrategy(_blowfish);
 
-        _holdRaw = ArrayPool<byte>.Shared.Rent(bufferSize);
+        const int arrayPoolMax = 1048576;
+        _holdPooled = bufferSize <= arrayPoolMax;
+        _holdRaw = _holdPooled ? ArrayPool<byte>.Shared.Rent(bufferSize) : new byte[bufferSize];
         _hold = new ArraySegment<byte>(_holdRaw, 0, bufferSize);
         _holdStart = 0;
         _holdEnd = 0;
@@ -254,7 +258,12 @@ internal sealed class BlowfishDecryptionStream : Stream
         {
             _disposed = true;
             _strategy.Dispose();
-            ArrayPool<byte>.Shared.Return(_holdRaw);
+
+            if (_holdPooled)
+            {
+                ArrayPool<byte>.Shared.Return(_holdRaw);
+            }
+
             _blowfish.Dispose();
         }
 

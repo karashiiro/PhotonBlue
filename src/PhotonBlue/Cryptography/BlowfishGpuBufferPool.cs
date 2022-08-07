@@ -6,7 +6,7 @@ namespace PhotonBlue.Cryptography;
 
 public sealed class BlowfishGpuBufferPool : IObjectPool<BlowfishGpuHandle, Blowfish>, IDisposable
 {
-    public const int DataBufferSize = 524288;
+    public const int DataBufferSize = 4194304; // 4MB
 
     private const int MaxConcurrency = 50;
     private const int MinConcurrency = 5;
@@ -42,8 +42,6 @@ public sealed class BlowfishGpuBufferPool : IObjectPool<BlowfishGpuHandle, Blowf
         var elementSize = Unsafe.SizeOf<uint2>();
         handle = new BlowfishGpuHandle
         {
-            Upload = Gpu.AllocateUploadBuffer<uint2>(DataBufferSize / elementSize),
-            Download = Gpu.AllocateReadBackBuffer<uint2>(DataBufferSize / elementSize),
             S0 = Gpu.AllocateConstantBuffer<uint>(state.S[0].AsSpan(0, 256)),
             S1 = Gpu.AllocateConstantBuffer<uint>(state.S[1].AsSpan(0, 256)),
             S2 = Gpu.AllocateConstantBuffer<uint>(state.S[2].AsSpan(0, 256)),

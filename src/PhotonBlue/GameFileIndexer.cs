@@ -76,12 +76,7 @@ public class GameFileIndexer : IGameFileIndexer
             {
                 var (p, s, r, f) = file;
 
-                var hash = f;
-                if (!string.IsNullOrEmpty(r))
-                {
-                    hash = r + f;
-                }
-
+                var hash = string.IsNullOrEmpty(r) ? f : r + f;
                 if (_index.GetPack(hash) == null)
                 {
                     Debug.Assert(!hash.Contains('/'));
@@ -133,20 +128,16 @@ public class GameFileIndexer : IGameFileIndexer
                         return Enumerable.Empty<ParsedFilePath?>();
                     }
 
-                    var first = fileEntries[0];
-                    Debug.Assert(first != null);
-                    Debug.Assert(first.PackName != null);
-
-                    var pack = _index.GetPack(first.PackName);
+                    var hash = string.IsNullOrEmpty(r) ? f : r + f;
+                    var pack = _index.GetPack(hash);
                     Debug.Assert(pack != null);
 
                     foreach (var fileEntry in fileEntries)
                     {
                         Debug.Assert(fileEntry != null);
-                        Debug.Assert(fileEntry.PackName != null);
                         Debug.Assert(fileEntry.FileName != null);
 
-                        var existing = _index.GetFileEntry(fileEntry.PackName, fileEntry.FileName);
+                        var existing = _index.GetFileEntry(hash, fileEntry.FileName);
                         if (existing != null)
                         {
                             _index.DeleteFileEntry(existing);
@@ -154,7 +145,7 @@ public class GameFileIndexer : IGameFileIndexer
 
                         _index.StoreFileEntry(new IndexFileEntry
                         {
-                            PackHash = fileEntry.PackName,
+                            PackHash = hash,
                             FileName = fileEntry.FileName,
                         });
                     }
