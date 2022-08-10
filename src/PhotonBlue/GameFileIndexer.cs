@@ -48,7 +48,7 @@ public class GameFileIndexer : IGameFileIndexer
 
         if (Directory.Exists(win32Path))
         {
-            allFiles.AddRange(Directory.EnumerateFiles(win32Path, "", SearchOption.AllDirectories)
+            allFiles.AddRange(Directory.EnumerateFiles(win32Path, "", SearchOption.TopDirectoryOnly)
                 .Select<string, (string, string, string?, string)>(file =>
                     (file, "win32", null, Path.GetFileName(file))));
             if (_index.GetRepository("win32") == null)
@@ -60,6 +60,7 @@ public class GameFileIndexer : IGameFileIndexer
         if (Directory.Exists(win32RebootPath))
         {
             allFiles.AddRange(Directory.EnumerateFiles(win32RebootPath, "", SearchOption.AllDirectories)
+                .Where(file => new DirectoryInfo(Path.GetDirectoryName(file)!).Name != "backup")
                 .Select<string, (string, string, string?, string)>(file => (file, "win32reboot",
                     new DirectoryInfo(Path.GetDirectoryName(file)!).Name, Path.GetFileName(file))));
             if (_index.GetRepository("win32reboot") == null)
