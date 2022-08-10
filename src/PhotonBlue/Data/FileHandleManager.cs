@@ -1,22 +1,14 @@
-﻿using Amib.Threading;
-using PhotonBlue.Cryptography;
+﻿using PhotonBlue.Cryptography;
 
 namespace PhotonBlue.Data;
 
-public sealed class FileHandleManager : IFileHandleProvider, IDisposable
+public sealed class FileHandleManager : IFileHandleProvider
 {
-    private readonly SmartThreadPool _threadPool;
-    
-    // TODO: Set up dependency injection or something
     private readonly IObjectPool<BlowfishGpuHandle, Blowfish> _blowfishGpuPool;
 
     public FileHandleManager(IObjectPool<BlowfishGpuHandle, Blowfish> blowfishGpuPool)
     {
         _blowfishGpuPool = blowfishGpuPool;
-        _threadPool = new SmartThreadPool(new STPStartInfo
-        {
-            ThreadPoolName = "Photon Blue",
-        });
     }
 
     /// <inheritdoc />
@@ -24,20 +16,30 @@ public sealed class FileHandleManager : IFileHandleProvider, IDisposable
     {
         var handle = new FileHandle<T>(path, _blowfishGpuPool);
         var weakRef = new WeakReference<BaseFileHandle>(handle);
-        _threadPool.QueueWorkItem(loadComplete ? LoadFileHandleAction : LoadFileHandleHeadersOnlyAction, weakRef);
+        ThreadPool.QueueUserWorkItem(loadComplete ? LoadFileHandleCallback : LoadFileHandleHeadersOnlyCallback,
+            weakRef);
         return handle;
     }
 
-    // These two actions are pre-allocated to avoid frequent boxing. Boxing otherwise accounts for
-    // over a gigabyte of short-lived allocations over the course of an indexing job.
+    // These delegate allocations are cached to avoid excessive memory usage (profiled).
+    private static readonly WaitCallback LoadFileHandleCallback = LoadFileHandle;
+    private static readonly WaitCallback LoadFileHandleHeadersOnlyCallback = LoadFileHandleHeadersOnly;
 
-    // ReSharper disable once ConvertClosureToMethodGroup
-    private static readonly Action<WeakReference<BaseFileHandle>> LoadFileHandleAction =
-        weakRef => LoadFileHandle(weakRef);
+    private static void LoadFileHandle(object? o)
+    {
+        if (o is WeakReference<BaseFileHandle> weakRef)
+        {
+            LoadFileHandle(weakRef);
+        }
+    }
 
-    // ReSharper disable once ConvertClosureToMethodGroup
-    private static readonly Action<WeakReference<BaseFileHandle>> LoadFileHandleHeadersOnlyAction =
-        weakRef => LoadFileHandleHeadersOnly(weakRef);
+    private static void LoadFileHandleHeadersOnly(object? o)
+    {
+        if (o is WeakReference<BaseFileHandle> weakRef)
+        {
+            LoadFileHandleHeadersOnly(weakRef);
+        }
+    }
 
     private static void LoadFileHandle(WeakReference<BaseFileHandle> weakRef)
     {
@@ -53,10 +55,5 @@ public sealed class FileHandleManager : IFileHandleProvider, IDisposable
         {
             handle.LoadHeadersOnly();
         }
-    }
-
-    public void Dispose()
-    {
-        _threadPool.Dispose();
     }
 }
