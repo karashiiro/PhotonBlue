@@ -30,7 +30,7 @@ public abstract class IceFile : FileResource
 
         public static FileHeader Read(BinaryReader reader)
         {
-            var header = new FileHeader()
+            var header = new FileHeader
             {
                 Magic = reader.ReadUInt32(),
                 Reserved1 = reader.ReadUInt32(),
