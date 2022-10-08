@@ -17,6 +17,8 @@ internal class ServiceModule : NinjectModule
     public override void Load()
     {
         Bind<IObjectPool<BlowfishGpuHandle, Blowfish>>().To<BlowfishGpuBufferPool>().InSingletonScope();
+        Bind<IObjectPool<WeakReference<BaseFileHandle>, BaseFileHandle>>().To<FileHandleReferencePool>()
+            .InSingletonScope();
         Bind<IFileHandleProvider>().To<FileHandleManager>().InSingletonScope();
         Bind<IGameFileIndexer>().To<GameFileIndexer>().InSingletonScope();
 
