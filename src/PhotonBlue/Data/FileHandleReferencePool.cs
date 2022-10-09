@@ -5,7 +5,7 @@ namespace PhotonBlue.Data;
 public class FileHandleReferencePool : IObjectPool<WeakReference<BaseFileHandle>, BaseFileHandle>, IDisposable
 {
     private const int MaxConcurrency = 10000;
-    private const int MinConcurrency = 1000;
+    private const int MinConcurrency = 0;
 
     private readonly ConcurrentQueue<WeakReference<BaseFileHandle>> _items;
     private readonly SemaphoreSlim _semaphore;
