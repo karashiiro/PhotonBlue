@@ -285,6 +285,7 @@ public class IceV4FileTests
 
     private static void AssertDataEquivalent(IReadOnlyCollection<byte> expected, IReadOnlyCollection<byte> actual)
     {
+        Assert.Equal(expected.AsEnumerable(), actual.AsEnumerable());
         if (expected.Count <= actual.Count)
         {
             Assert.Equal(expected.AsEnumerable(), actual.AsEnumerable());

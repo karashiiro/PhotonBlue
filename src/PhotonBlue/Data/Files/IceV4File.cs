@@ -4,6 +4,7 @@ using PhotonBlue.Attributes;
 using PhotonBlue.Cryptography;
 using PhotonBlue.Extensions;
 using PhotonBlue.Ooz;
+using PhotonBlue.PRS;
 
 namespace PhotonBlue.Data.Files;
 
@@ -280,7 +281,7 @@ public class IceV4File : IceFile
             {
                 // PRS decompression
                 var prsInput = new IcePrsInputStream(inputStream);
-                var decompressionStream = new PrsStream(prsInput);
+                var decompressionStream = new PrsDecoderStream(prsInput);
                 return decompressionStream;
             }
             default:

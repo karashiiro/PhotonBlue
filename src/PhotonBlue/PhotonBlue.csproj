@@ -12,6 +12,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\PhotonBlue.Ooz\PhotonBlue.Ooz.vcxproj" />
+      <ProjectReference Include="..\PhotonBlue.PRS\PhotonBlue.PRS.csproj" />
     </ItemGroup>
 
     <ItemGroup>
