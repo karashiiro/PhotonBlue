@@ -13,4 +13,16 @@ public class DataLoader
     {
         return File.ReadAllBytes("input.txt");
     }
+
+    public static byte[] LoadCompressedSmall()
+    {
+        // Compressed with https://github.com/HybridEidolon/rust-ages-prs
+        // using the modern PRS compression algorithm
+        return File.ReadAllBytes("output_small.prs");
+    }
+
+    public static byte[] LoadDecompressedSmall()
+    {
+        return File.ReadAllBytes("input_small.txt");
+    }
 }

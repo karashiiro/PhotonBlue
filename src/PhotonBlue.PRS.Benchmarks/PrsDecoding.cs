@@ -5,7 +5,7 @@ namespace PhotonBlue.PRS.Benchmarks;
 
 [SimpleJob(RuntimeMoniker.Net60)]
 [MemoryDiagnoser]
-public class PrsDecoding
+public partial class PrsDecoding
 {
     private byte[] _decompressedData = null!;
     private byte[] _compressedData = null!;
@@ -20,24 +20,12 @@ public class PrsDecoding
         _compressedData = DataLoader.LoadCompressed();
     }
 
-    [IterationSetup(Target = "PrsDecoderStream")]
-    public void PrsDecoderStream_IterationSetup()
-    {
-        _prsStream = new PrsDecoderStream(new MemoryStream(_compressedData));
-        _prsBuffer = new byte[_decompressedData.Length];
-    }
-
-    [IterationSetup(Target = "PrsDecoderStream_Buffered")]
-    public void PrsDecoderStream_Buffered_IterationSetup()
-    {
-        var bufferedStream = new BufferedStream(new MemoryStream(_compressedData));
-        _prsStream = new PrsDecoderStream(bufferedStream);
-        _prsBuffer = new byte[_decompressedData.Length];
-    }
+    [Benchmark]
+    public int DecoderStream_Read() => _prsStream.Read(_prsBuffer);
 
     [Benchmark]
-    public int PrsDecoderStream() => _prsStream.Read(_prsBuffer);
+    public long DecoderStream_Seek() => _prsStream.Seek(_decompressedData.Length, SeekOrigin.Current);
 
     [Benchmark]
-    public int PrsDecoderStream_Buffered() => _prsStream.Read(_prsBuffer);
+    public void OneShotDecoder() => PrsOneShotDecoder.Decode(_compressedData, _prsBuffer);
 }
