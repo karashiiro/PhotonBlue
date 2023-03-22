@@ -5,21 +5,56 @@ namespace PhotonBlue.PRS;
 public class InclusiveRangeUtils
 {
     /// <summary>
-    /// TODO: Add algorithm explanation
+    /// Given two inclusive ranges and a cut position, aligns the ranges
+    /// over the cut, such that the ranges are divided into sub-ranges of
+    /// aligned lengths. The input ranges must be of exactly equal length.
+    ///
+    /// This algorithm is used to compute the optimal ranges for block-
+    /// copying regions of the circular lookaround buffer used in the PRS
+    /// decoder. Copies need to be done such that the source region does
+    /// not overwrite itself while copying to the destination, and such
+    /// that copies can be split at the end of the circular buffer, wrapping
+    /// around to the start again.
+    ///
+    /// For example:
+    /// Given the ranges [8188, 8195] and [8191, 8198], and a cut position
+    /// of 8191, a cut is made into the first range, since it crosses the
+    /// cut.
+    ///
+    /// This gives us [[8188, 8190], [8191, 8195]] and [[8191, 8198]]. Note
+    /// that neither range in the first set crosses the cut.
+    ///
+    /// Next, the sets are aligned by setting them to begin at 0. This gives
+    /// us [[0, 2], [3, 7]] and [[0, 7]].
+    ///
+    /// To get sub-ranges of aligned lengths in the result, the cuts now need
+    /// to be shared between the sets. The range [0, 2] intersects with the
+    /// range [0, 7], splitting it into [[0, 2], [3, 7]], which is the same
+    /// as the source set.
+    ///
+    /// Finally, the offset is added back to each set, giving us [[8188, 8190],
+    /// [8191, 8195]] and [[8191, 8193], [8194, 8198]]. The first range of each
+    /// set has a length of 3 (the ranges are inclusive), and the second range
+    /// of each set has a length of 5, so they are aligned.
     /// </summary>
-    /// <param name="source"></param>
-    /// <param name="destination"></param>
-    /// <param name="cut"></param>
-    /// <returns></returns>
+    /// <param name="source">
+    /// The source range buffer, which must have a length of 6.
+    /// The initial range must be in the first two positions.
+    /// </param>
+    /// <param name="destination">
+    /// The destination range buffer, which must have a length of 6.
+    /// The initial range must be in the first two positions.
+    /// </param>
+    /// <param name="cut">The position of the initial cut.</param>
+    /// <returns>The number of intervals in the result.</returns>
     public static int AlignRangesOverCut(
         Span<int> source,
         Span<int> destination,
         int cut)
     {
-        // We can have at most four ranges (eight ints) for each part
-        // TODO: Deduplicate cut indexes to use only three ranges
-        Debug.Assert(source.Length == 8);
-        Debug.Assert(destination.Length == 8);
+        // We can have at most three ranges (six ints) for each part
+        Debug.Assert(source.Length == 6);
+        Debug.Assert(destination.Length == 6);
         Debug.Assert(InclusiveRange.Length(source[..2]) == InclusiveRange.Length(destination[..2]));
         var sourceCuts = new InclusiveRangeSet(source, 2);
         var destinationCuts = new InclusiveRangeSet(destination, 2);
@@ -111,6 +146,7 @@ public class InclusiveRangeUtils
 
         // Return the number of ranges we have after distributing cuts
         Debug.Assert(sourceCuts.Count == destinationCuts.Count);
+        Debug.Assert(sourceCuts.Count < 4);
         return sourceCuts.Count;
     }
 }

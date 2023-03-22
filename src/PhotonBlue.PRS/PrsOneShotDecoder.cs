@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Text;
 
 namespace PhotonBlue.PRS;
 
@@ -41,26 +40,21 @@ public class PrsOneShotDecoder
         public ControlByte Control = new(0);
         public int ControlCounter = 8;
         public readonly Span<byte> Lookaround;
-        public readonly Span<byte> Buffer;
         public int LookaroundIndex;
         public int OutIndex;
         public int CompressedIndex;
         public int BytesRead;
 
-        public string LookaroundString => Encoding.UTF8.GetString(Lookaround);
-        public string BufferString => Encoding.UTF8.GetString(Buffer);
-
-        public DecoderContext(Span<byte> lookaround, Span<byte> buffer)
+        public DecoderContext(Span<byte> lookaround)
         {
             Lookaround = lookaround;
-            Buffer = buffer;
         }
     }
 
     public static void Decode(Span<byte> compressed, Span<byte> decompressed)
     {
         Span<byte> lookaround = stackalloc byte[0x1FFF];
-        var context = new DecoderContext(lookaround, decompressed);
+        var context = new DecoderContext(lookaround);
         Decode(ref context, compressed, decompressed);
     }
 
@@ -109,17 +103,18 @@ public class PrsOneShotDecoder
         // The destination region is [context.LookaroundIndex, context.LookaroundIndex + toRead),
         // also wrapping if necessary.
         var loadIndex = context.LookaroundIndex + offset;
+        var lookaroundLength = context.Lookaround.Length;
         if (loadIndex < 0)
         {
-            loadIndex += context.Lookaround.Length;
+            loadIndex += lookaroundLength;
         }
 
-        if (loadIndex > context.Lookaround.Length)
+        if (loadIndex > lookaroundLength)
         {
-            loadIndex %= context.Lookaround.Length;
+            loadIndex %= lookaroundLength;
         }
 
-        if (CanFastCopy(context.LookaroundIndex, context.Lookaround.Length, loadIndex, toRead))
+        if (CanFastCopy(context.LookaroundIndex, lookaroundLength, loadIndex, toRead))
         {
             FastCopy(ref context, loadIndex, toRead, buffer);
         }
@@ -127,6 +122,8 @@ public class PrsOneShotDecoder
         {
             ComplexCopy(ref context, loadIndex, toRead, buffer);
         }
+
+        context.LookaroundIndex = (context.LookaroundIndex + toRead) % lookaroundLength;
     }
 
     private static void FastCopy(ref DecoderContext context, int loadIndex, int toRead, Span<byte> buffer)
@@ -134,41 +131,44 @@ public class PrsOneShotDecoder
         var copySrc = context.Lookaround.Slice(loadIndex, toRead);
         copySrc.CopyTo(buffer);
         copySrc.CopyTo(context.Lookaround.Slice(context.LookaroundIndex, toRead));
-        context.LookaroundIndex = (context.LookaroundIndex + toRead) % context.Lookaround.Length;
     }
 
     private static void ComplexCopy(ref DecoderContext context, int loadIndex, int toRead, Span<byte> buffer)
     {
-        Span<int> sourceRange = stackalloc int[8];
+        var lookaroundLength = context.Lookaround.Length;
+
+        // Compute the optimal safe copy ranges
+        Span<int> sourceRange = stackalloc int[6];
         sourceRange[0] = loadIndex;
         sourceRange[1] = loadIndex + toRead - 1;
 
-        Span<int> destinationRange = stackalloc int[8];
+        Span<int> destinationRange = stackalloc int[6];
         destinationRange[0] = context.LookaroundIndex;
         destinationRange[1] = context.LookaroundIndex + toRead - 1;
 
-        var cuts = InclusiveRangeUtils.AlignRangesOverCut(
-            sourceRange,
-            destinationRange,
-            context.Lookaround.Length);
+        var cuts = InclusiveRangeUtils.AlignRangesOverCut(sourceRange, destinationRange, lookaroundLength);
 
+        // Perform block copy operations according to the computed ranges
         for (var cut = 0; cut < cuts; cut++)
         {
             var sr = sourceRange.Slice(cut * 2, 2);
             var dr = destinationRange.Slice(cut * 2, 2);
+
             var (copySrcStart, copySrcLength) = IntervalToRange(sr[0], sr[1]);
-            var copySrc = context.Lookaround.Slice(copySrcStart % context.Lookaround.Length, copySrcLength);
             var (copyDstStart, copyDstLength) = IntervalToRange(dr[0], dr[1]);
-            var copyDstBuffer = buffer.Slice((copyDstStart - context.LookaroundIndex) % context.Lookaround.Length,
-                copyDstLength);
-            var copyDstLookaround =
-                context.Lookaround.Slice(copyDstStart % context.Lookaround.Length,
-                    copyDstLength);
+
+            var copySrcStartWrapped = copySrcStart % lookaroundLength;
+            var copySrc = context.Lookaround.Slice(copySrcStartWrapped, copySrcLength);
+
+            var copyDstBufferWrapped = (copyDstStart - context.LookaroundIndex) % lookaroundLength;
+            var copyDstBuffer = buffer.Slice(copyDstBufferWrapped, copyDstLength);
+
+            var copyDstLookaroundWrapped = copyDstStart % lookaroundLength;
+            var copyDstLookaround = context.Lookaround.Slice(copyDstLookaroundWrapped, copyDstLength);
+
             copySrc.CopyTo(copyDstBuffer);
             copySrc.CopyTo(copyDstLookaround);
         }
-
-        context.LookaroundIndex = (context.LookaroundIndex + toRead) % context.Lookaround.Length;
     }
 
     private static bool CanFastCopy(int lookaroundIndex, int lookaroundLength, int loadIndex, int size)
