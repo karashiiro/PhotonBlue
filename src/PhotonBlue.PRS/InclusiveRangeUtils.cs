@@ -47,7 +47,7 @@ public static class InclusiveRangeUtils
     /// </param>
     /// <param name="cut">The position of the initial cut.</param>
     /// <returns>The number of intervals in the result.</returns>
-    public static int AlignRangesOverCut(Span<int> source, Span<int> destination, int cut)
+    public static int AlignRangesOverCut(Span<int> source, Span<int> destination, int cut = -1)
     {
         // We can have at most three ranges (six ints) for each part.
         // This can be improved to only use four ints by inferring the remaining
@@ -66,21 +66,24 @@ public static class InclusiveRangeUtils
 
         Span<int> scratch = stackalloc int[2];
 
-        // Check if either range crosses the cut, and apply the cut if needed
-        if (InclusiveRange.Contains(source[..2], cut))
+        if (cut != -1)
         {
-            source[3] = source[1];
-            source[1] = cut - 1;
-            source[2] = cut;
-            sourceCuts.Count++;
-        }
+            // Check if either range crosses the cut, and apply the cut if needed
+            if (InclusiveRange.Contains(source[..2], cut))
+            {
+                source[3] = source[1];
+                source[1] = cut - 1;
+                source[2] = cut;
+                sourceCuts.Count++;
+            }
 
-        if (InclusiveRange.Contains(destination[..2], cut))
-        {
-            destination[3] = destination[1];
-            destination[1] = cut - 1;
-            destination[2] = cut;
-            destinationCuts.Count++;
+            if (InclusiveRange.Contains(destination[..2], cut))
+            {
+                destination[3] = destination[1];
+                destination[1] = cut - 1;
+                destination[2] = cut;
+                destinationCuts.Count++;
+            }
         }
 
         // If the ranges intersect and were not already cut, cut them at the intersection points
