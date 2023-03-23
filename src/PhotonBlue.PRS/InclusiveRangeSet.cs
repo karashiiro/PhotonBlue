@@ -1,6 +1,6 @@
 namespace PhotonBlue.PRS;
 
-public ref struct InclusiveRangeSet
+internal ref struct InclusiveRangeSet
 {
     private readonly Span<int> _ranges;
     private int _valuesCount;
@@ -19,18 +19,22 @@ public ref struct InclusiveRangeSet
 
     public void Add(int start, int end)
     {
-        if (Contains(start, end))
+        var containsStart = ContainsLeft(start);
+        var containsEnd = ContainsRight(end);
+
+        // ReSharper disable once ConvertIfStatementToSwitchStatement
+        if (containsStart && containsEnd)
         {
             return;
         }
 
-        if (ContainsLeft(start))
+        if (containsStart)
         {
             // New range is left-aligned with an existing range
             _ranges[_valuesCount++] = end;
             _ranges[_valuesCount++] = end + 1;
         }
-        else if (ContainsRight(end))
+        else if (containsEnd)
         {
             // New range is right-aligned with an existing range
             _ranges[_valuesCount++] = start;
@@ -42,7 +46,26 @@ public ref struct InclusiveRangeSet
             _ranges[_valuesCount++] = end;
         }
 
-        _ranges[.._valuesCount].Sort();
+        InsertionSort(_ranges[.._valuesCount]);
+    }
+
+    private static void InsertionSort(Span<int> keys)
+    {
+        // Copied right out of the Span<T>.Sort() implementation, with some
+        // minor optimizations.
+        for (var i = 0; i < keys.Length - 1; i++)
+        {
+            var t = keys[i + 1];
+
+            var j = i;
+            while (j >= 0 && t < keys[j])
+            {
+                keys[j + 1] = keys[j];
+                j--;
+            }
+
+            keys[j + 1] = t;
+        }
     }
 
     private bool ContainsLeft(int value)
@@ -57,7 +80,7 @@ public ref struct InclusiveRangeSet
 
         return false;
     }
-    
+
     private bool ContainsRight(int value)
     {
         for (var i = 1; i < _valuesCount; i += 2)
@@ -69,33 +92,5 @@ public ref struct InclusiveRangeSet
         }
 
         return false;
-    }
-
-    public bool Contains(int start, int end)
-    {
-        for (var i = 0; i < Count; i++)
-        {
-            var r0 = _ranges[i * 2];
-            var r1 = _ranges[i * 2 + 1];
-            if (r0 == start && r1 == end)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    public void Sort()
-    {
-        _ranges[.._valuesCount].Sort();
-    }
-
-    public static void Modulus(Span<int> values, int mod)
-    {
-        for (var i = 0; i < values.Length; i++)
-        {
-            values[i] %= mod;
-        }
     }
 }

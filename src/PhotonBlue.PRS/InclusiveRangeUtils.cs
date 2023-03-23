@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 namespace PhotonBlue.PRS;
 
-public class InclusiveRangeUtils
+public static class InclusiveRangeUtils
 {
     /// <summary>
     /// Given two inclusive ranges and a cut position, aligns the ranges
@@ -47,12 +47,11 @@ public class InclusiveRangeUtils
     /// </param>
     /// <param name="cut">The position of the initial cut.</param>
     /// <returns>The number of intervals in the result.</returns>
-    public static int AlignRangesOverCut(
-        Span<int> source,
-        Span<int> destination,
-        int cut)
+    public static int AlignRangesOverCut(Span<int> source, Span<int> destination, int cut)
     {
-        // We can have at most three ranges (six ints) for each part
+        // We can have at most three ranges (six ints) for each part.
+        // This can be improved to only use four ints by inferring the remaining
+        // cuts, but that doesn't seem worth the effort.
         Debug.Assert(source.Length == 6);
         Debug.Assert(destination.Length == 6);
         Debug.Assert(InclusiveRange.Length(source[..2]) == InclusiveRange.Length(destination[..2]));
@@ -70,18 +69,18 @@ public class InclusiveRangeUtils
         // Check if either range crosses the cut, and apply the cut if needed
         if (InclusiveRange.Contains(source[..2], cut))
         {
-            source[2] = cut - 1;
-            source[3] = cut;
+            source[3] = source[1];
+            source[1] = cut - 1;
+            source[2] = cut;
             sourceCuts.Count++;
-            sourceCuts.Sort();
         }
 
         if (InclusiveRange.Contains(destination[..2], cut))
         {
-            destination[2] = cut - 1;
-            destination[3] = cut;
+            destination[3] = destination[1];
+            destination[1] = cut - 1;
+            destination[2] = cut;
             destinationCuts.Count++;
-            destinationCuts.Sort();
         }
 
         // If the ranges intersect and were not already cut, cut them at the intersection points
