@@ -56,7 +56,7 @@ public class PrsOneShotDecoder
         Decode(ref context, compressed, decompressed);
     }
 
-    private static void Decode(ref DecoderContext context, Span<byte> compressed, Span<byte> decompressed)
+    private static void Decode(ref DecoderContext context, ReadOnlySpan<byte> compressed, Span<byte> decompressed)
     {
         while (context.OutIndex < decompressed.Length)
         {
@@ -142,7 +142,7 @@ public class PrsOneShotDecoder
         return (start, end - start + 1);
     }
 
-    private static (PrsInstruction, int, int) GetNextInstruction(Span<byte> compressed, ref DecoderContext context)
+    private static (PrsInstruction, int, int) GetNextInstruction(ReadOnlySpan<byte> compressed, ref DecoderContext context)
     {
         if (GetControlBit(compressed, ref context))
         {
@@ -175,7 +175,7 @@ public class PrsOneShotDecoder
         return data0 == 0 && data1 == 0;
     }
 
-    private static (int, int) ReadLongRun(Span<byte> compressed, ref DecoderContext context, int data0, int data1)
+    private static (int, int) ReadLongRun(ReadOnlySpan<byte> compressed, ref DecoderContext context, int data0, int data1)
     {
         var controlOffset = (data1 << 5) + (data0 >> 3) - 8192;
         var controlSize = data0 & 0b00000111;
@@ -194,7 +194,7 @@ public class PrsOneShotDecoder
         return (controlOffset, controlSize);
     }
 
-    private static (int, int) ReadShortRun(Span<byte> compressed, ref DecoderContext context)
+    private static (int, int) ReadShortRun(ReadOnlySpan<byte> compressed, ref DecoderContext context)
     {
         var controlSize = 2;
         if (GetControlBit(compressed, ref context))
@@ -212,7 +212,7 @@ public class PrsOneShotDecoder
         return (controlOffset, controlSize);
     }
 
-    private static bool GetControlBit(Span<byte> compressed, ref DecoderContext context)
+    private static bool GetControlBit(ReadOnlySpan<byte> compressed, ref DecoderContext context)
     {
         if (context.ControlCounter == 8)
         {
