@@ -1,0 +1,596 @@
+{
+  "homepages": [],
+  "source_base_path": "D:/a/PhotonBlue/PhotonBlue/docfx",
+  "xrefmap": "xrefmap.yml",
+  "files": [
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Cryptography.Blowfish.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Cryptography.Blowfish.html",
+          "hash": "ZwXql0+ybcsSPWBt0nOOVPVRQe8kXZTUyVTY4h+jLv4="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Cryptography.BlowfishGpuBufferPool.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Cryptography.BlowfishGpuBufferPool.html",
+          "hash": "myLPluuGv6ZZlUqQ6uvAgqYgs1TWNP5RwvyLOOWvk4Y="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Cryptography.BlowfishGpuHandle.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Cryptography.BlowfishGpuHandle.html",
+          "hash": "1fKWNcqAIQtq6V2T7FqggK6aFCwCMKVblTg7XqHp9/M="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Cryptography.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Cryptography.html",
+          "hash": "oEk0/MN3yFeB2dJEKRqADT0CtlhwNF0bmWHnSNFubSw="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Data.BaseFileHandle.FileState.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Data.BaseFileHandle.FileState.html",
+          "hash": "vP5Y+NBsDUdB/4WNLQuck8YuWSjcMqdiDxOinrzceo4="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Data.BaseFileHandle.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Data.BaseFileHandle.html",
+          "hash": "ekrYaDKJ1BnuFh+v8Gwc1qhTN/weBbGjusXYnc17rac="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Data.FileHandle-1.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Data.FileHandle-1.html",
+          "hash": "I2K6+2ELE2iPv9boucZNMNS9nx8xnOLQVwxtocWEWgo="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Data.FileHandleManager.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Data.FileHandleManager.html",
+          "hash": "eEWIMZr9e8q7fYAJ9VgHWQcZ7bqMaaPtH6I0n+bthxY="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Data.FileHandleReferencePool.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Data.FileHandleReferencePool.html",
+          "hash": "6Jo0FM8Pe6UCzz+NQ01kS344QvMC4pRrXplL7AjlktQ="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Data.FileResource.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Data.FileResource.html",
+          "hash": "pSxRxMC0edZTtAwTHZgX4Jx+IVO3dUkTORApFlkmDps="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Data.Files.IceFile.FileEntry.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Data.Files.IceFile.FileEntry.html",
+          "hash": "NRmnUezvlM27x0JQOZwph85+dlZqOo+fauAtZc4/YOU="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Data.Files.IceFile.FileEntryHeader.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Data.Files.IceFile.FileEntryHeader.html",
+          "hash": "EFBSmRriUOYmzmnuVTrr+1Gv2xG8cgKih1wXBMrE6Ig="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Data.Files.IceFile.FileHeader.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Data.Files.IceFile.FileHeader.html",
+          "hash": "mVYXzED1xPEOWK0XQkSQU/sVTqOInna4bzDKPrD3Rrs="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Data.Files.IceFile.IceFileFlags.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Data.Files.IceFile.IceFileFlags.html",
+          "hash": "t7KXVGABiOhBXeu68qT+Bj1G3k0FOIGWSqs0ggOzKTE="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Data.Files.IceFile.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Data.Files.IceFile.html",
+          "hash": "Y60eOAUDG7zZxcqHP2eqlfevXbneZgDx/tbvVGsjat8="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Data.Files.IceV4File.GroupHeader.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Data.Files.IceV4File.GroupHeader.html",
+          "hash": "psQv+uBR5IV8FYeL58Oob9H8vELVjgxt2+dxY/mQq/k="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Data.Files.IceV4File.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Data.Files.IceV4File.html",
+          "hash": "ZIoWeCGCb5ixJfvgoMCmvJ8Qv1syDLsUD9NjSORoOpk="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Data.Files.NiflFile.FileHeader.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Data.Files.NiflFile.FileHeader.html",
+          "hash": "+qbVIKE3pQ9WzQl2nK1EJMo5LI2q4oRqQH6I6HxSRBw="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Data.Files.NiflFile.Nof0Header.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Data.Files.NiflFile.Nof0Header.html",
+          "hash": "UyCU7AVyCzl7CQuSkU4biulboPqBtOGaUZRU9KBNLGI="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Data.Files.NiflFile.Rel0Header.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Data.Files.NiflFile.Rel0Header.html",
+          "hash": "IuWuVsrwRHwP5q+4YV/pRGFt2pslwlYr76ky7iK+xEw="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Data.Files.NiflFile.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Data.Files.NiflFile.html",
+          "hash": "KhyeDE0E9CWILCqLPTeU6lDxxU8jV34jD5pNw6FId64="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Data.Files.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Data.Files.html",
+          "hash": "yDltXXfU9IelXi/OVc++/434LH9tu1K/oQk+4eQe/lg="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Data.IFileHandleProvider.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Data.IFileHandleProvider.html",
+          "hash": "skjWDxJgFfRq0v4DbT1qIu4QWKjdtfkegJNNJ7+2mUs="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Data.ParsedFilePath.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Data.ParsedFilePath.html",
+          "hash": "OkHdDggrwJIjq2qZNFzA/QbwTf9w7mUrWiwpzdC6jWk="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Data.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Data.html",
+          "hash": "Qv3VFrGprJ7RlCKhzjVQ78O8W+yOtGb8fpg9ysh+XTk="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.GameData.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.GameData.html",
+          "hash": "MP4nbzn2mKPfF+AItRn7hTYRbs+SMM16zu5Wvgvm4fo="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.GameFileIndexer.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.GameFileIndexer.html",
+          "hash": "QjXA5SuRELHe26OwSEz0SU4tGX5J0qU5r7pTPghdAhQ="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.IGameFileIndexer.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.IGameFileIndexer.html",
+          "hash": "ytT74TDYNngEuCqqjFIHlGl5blL6OXdHhrIa5wMku+4="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.IObjectPool-2.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.IObjectPool-2.html",
+          "hash": "GFmrQpjRSSzjlDoPTZFLLUwsCX2czcU4pLf3WEtcDcw="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Persistence.IGameFileIndex.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Persistence.IGameFileIndex.html",
+          "hash": "a14eF5dKnqL2/s7y2LUOrlBYQbbibAmV69V19bq/4Gk="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Persistence.IndexFileEntry.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Persistence.IndexFileEntry.html",
+          "hash": "bKyF45iIwYCIZGBfTfIWL+ST/qYqCpaF/r6an3eozeM="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Persistence.IndexPack.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Persistence.IndexPack.html",
+          "hash": "EQtGPjgFo6Fq480smpruqrMc88QVJCPpn+DD1o5Tihc="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Persistence.IndexRepository.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Persistence.IndexRepository.html",
+          "hash": "H0bLpqcm9oGwDA4cGcjhJKeuTFzLUcXVMh6NkWKnS6s="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Persistence.MemoryIndex.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Persistence.MemoryIndex.html",
+          "hash": "ZNvbmE4yLJHJU8bGl16fs50bXaprJvvzEv2BXjX09yE="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.Persistence.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.Persistence.html",
+          "hash": "sIWFw0A4J2TrRffWwxi6qDQ5u25B1JqVKLymS22zvwI="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.PhotonBlueOptions.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.PhotonBlueOptions.html",
+          "hash": "0gnLmeGckCtBzeC8MFqIpR94csdvltbtl5i40WGrF2A="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/PhotonBlue.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/PhotonBlue.html",
+          "hash": "rUlqItxW/6zLb9Uel4kSVkPQ+hGoSPEtbwdA1Ky7ULo="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "api/index.md",
+      "output": {
+        ".html": {
+          "relative_path": "api/index.html",
+          "hash": "w8d1EpB2lW1D3UCMrWZ0ksbZYHNg9tW3sG1gvOi2q60="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "Toc",
+      "source_relative_path": "api/toc.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/toc.html",
+          "hash": "isZE5tuuPq76fU8wbZLXjwSuJ0jPEuQni14mPe1KfeU="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "articles/getting-started.md",
+      "output": {
+        ".html": {
+          "relative_path": "articles/getting-started.html",
+          "hash": "x+ebtYYeIbQL99bc70ZTtrUr5b2UWG/HBamftePvWHo="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "articles/intro.md",
+      "output": {
+        ".html": {
+          "relative_path": "articles/intro.html",
+          "hash": "c3kDDQl4TpMjXW70t9neOcBtiZ3JhSCJ6Ybn7R6jBmw="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "articles/performance-considerations.md",
+      "output": {
+        ".html": {
+          "relative_path": "articles/performance-considerations.html",
+          "hash": "UEz8eBVKuEznFevbPO4BX9FxUSTBiut4FUhmbcraYps="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "Toc",
+      "source_relative_path": "articles/toc.yml",
+      "output": {
+        ".html": {
+          "relative_path": "articles/toc.html",
+          "hash": "2cHia8x3LGwkG6BWmhOsSBmwwU7eNlnSyot89W56C6Q="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "index.md",
+      "output": {
+        ".html": {
+          "relative_path": "index.html",
+          "hash": "uQiOLckxmpguAW0I3wZ9MSJZhXIpk/qTLoh07UkkF3s="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    },
+    {
+      "type": "Toc",
+      "source_relative_path": "toc.yml",
+      "output": {
+        ".html": {
+          "relative_path": "toc.html",
+          "hash": "WSuRrYiGwKKMbtdG9z8W9fXmLoCyTnGg9AxbPKLXm2Y="
+        }
+      },
+      "is_incremental": false,
+      "version": ""
+    }
+  ],
+  "incremental_info": [
+    {
+      "status": {
+        "can_incremental": false,
+        "details": "Cannot build incrementally because last build info is missing.",
+        "incrementalPhase": "build",
+        "total_file_count": 0,
+        "skipped_file_count": 0,
+        "full_build_reason_code": "NoAvailableBuildCache"
+      },
+      "processors": {
+        "ConceptualDocumentProcessor": {
+          "can_incremental": false,
+          "incrementalPhase": "build",
+          "total_file_count": 5,
+          "skipped_file_count": 0
+        },
+        "ManagedReferenceDocumentProcessor": {
+          "can_incremental": false,
+          "incrementalPhase": "build",
+          "total_file_count": 37,
+          "skipped_file_count": 0
+        },
+        "TocDocumentProcessor": {
+          "can_incremental": false,
+          "details": "Processor TocDocumentProcessor cannot support incremental build because the processor doesn't implement ISupportIncrementalDocumentProcessor interface.",
+          "incrementalPhase": "build",
+          "total_file_count": 0,
+          "skipped_file_count": 0
+        }
+      }
+    },
+    {
+      "status": {
+        "can_incremental": false,
+        "details": "Cannot support incremental post processing, the reason is: last post processor info is null.",
+        "incrementalPhase": "postProcessing",
+        "total_file_count": 0,
+        "skipped_file_count": 0
+      },
+      "processors": {}
+    }
+  ],
+  "version_info": {},
+  "groups": [
+    {
+      "xrefmap": "xrefmap.yml"
+    }
+  ]
+}
